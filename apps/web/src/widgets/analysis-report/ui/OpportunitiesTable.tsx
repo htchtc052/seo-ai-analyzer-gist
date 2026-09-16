@@ -24,7 +24,7 @@ import {
 } from "@/shared/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import type { AnalysisPageRow } from "../model/analysis-report";
-import { formatPercent, formatScore, formatSum } from "./report-format";
+import { formatPercent, formatScore } from "./report-format";
 
 const features = tableFeatures({
   rowSortingFeature,
@@ -91,7 +91,7 @@ const columns = columnHelper.columns([
     ),
     sortUndefined: "last",
     cell: ({ getValue }) => (
-      <NumberCell value={getValue()} format={formatSum} emphasized />
+      <NumberCell value={getValue()} format={formatScore} emphasized />
     ),
   }),
   columnHelper.accessor("bestScore", {

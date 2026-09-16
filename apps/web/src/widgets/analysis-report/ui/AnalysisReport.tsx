@@ -10,7 +10,7 @@ import {
 import type { CompletedAnalysis } from "@/entities/analysis";
 import { buildAnalysisReport } from "../model/analysis-report";
 import { OpportunitiesTable } from "./OpportunitiesTable";
-import { formatPercent, formatScore, formatSum } from "./report-format";
+import { formatPercent, formatScore } from "./report-format";
 
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
   const report = useMemo(() => buildAnalysisReport(run), [run]);
@@ -21,7 +21,7 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
         <section className="grid grid-cols-4 gap-3">
           <SummaryMetric
             label="Средняя оценка"
-            value={formatSum(report.summary.score)}
+            value={formatScore(report.summary.score)}
             description="Средняя оценка страниц конкурента"
             help="Средняя оценка страниц конкурента. Оценка страницы — средняя оценка пяти её лучших фрагментов: среднее, а не сумма, чтобы длина страницы не давала преимущества, и по лучшим, чтобы длинный текст не размывался слабыми абзацами."
           />
