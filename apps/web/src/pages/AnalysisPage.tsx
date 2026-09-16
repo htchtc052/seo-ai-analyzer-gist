@@ -1,7 +1,8 @@
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Link, useParams } from "react-router";
+import type { AnalysisRun } from "@/entities/analysis";
 import {
-  analysisFailureMessage,
+  analysisFailureReport,
   AnalysisProgress,
   useAnalysis,
 } from "@/entities/analysis";
@@ -14,6 +15,32 @@ import {
   CardTitle,
 } from "@/shared/ui/card";
 import { AnalysisReport } from "@/widgets/analysis-report";
+
+function FailureAlert({
+  run,
+}: {
+  run: Extract<AnalysisRun, { status: "failed" }>;
+}) {
+  const failure = analysisFailureReport(run);
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>Анализ не выполнен</AlertTitle>
+      <AlertDescription>
+        <span className="block">{failure.summary}</span>
+        {failure.url && (
+          <span className="mt-2 block">
+            Остановились на <code className="break-all">{failure.url}</code>
+          </span>
+        )}
+        {failure.detail && (
+          <span className="mt-1 block text-xs">
+            Ответ сервера: <code>{failure.detail}</code>
+          </span>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 function hostname(url: string): string {
   return new URL(url).hostname;
@@ -72,12 +99,7 @@ export function AnalysisPage() {
               </CardContent>
             </Card>
           )}
-          {run.status === "failed" && (
-            <Alert variant="destructive">
-              <AlertTitle>Анализ не выполнен</AlertTitle>
-              <AlertDescription>{analysisFailureMessage(run)}</AlertDescription>
-            </Alert>
-          )}
+          {run.status === "failed" && <FailureAlert run={run} />}
         </>
       )}
     </div>

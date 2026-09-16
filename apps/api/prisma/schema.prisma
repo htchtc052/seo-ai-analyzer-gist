@@ -43,6 +43,8 @@ model Analysis {
   embeddingModel    String?
   failureSite       FailureSite?
   failureReason     FailureReason?
+  failureUrl        String?
+  failureDetail     String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   completedAt       DateTime?

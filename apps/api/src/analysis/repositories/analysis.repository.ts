@@ -75,6 +75,8 @@ export class AnalysisRepository {
         crawledPages: 0,
         failureSite: null,
         failureReason: null,
+        failureUrl: null,
+        failureDetail: null,
       },
     });
   }
@@ -212,6 +214,8 @@ export class AnalysisRepository {
           completedAt: new Date(),
           failureSite: null,
           failureReason: null,
+          failureUrl: null,
+          failureDetail: null,
         },
       }),
     ]);
@@ -231,6 +235,8 @@ export class AnalysisRepository {
           ? (failure.site.toUpperCase() as FailureSite)
           : null,
         failureReason: failure.reason.toUpperCase() as FailureReason,
+        failureUrl: failure.site ? failure.url : null,
+        failureDetail: failure.site ? failure.detail : null,
       },
     });
   }

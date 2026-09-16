@@ -14,14 +14,17 @@ export class PageClientService {
 
     const contentType = response.headers.get("content-type") ?? "";
     if (!/^(text\/html|application\/xhtml\+xml)\b/i.test(contentType)) {
-      throw new PageLoadError("Page is not HTML");
+      throw new PageLoadError(
+        `Answered with ${contentType || "no"} content type`,
+        url,
+      );
     }
 
-    return { url: response.url, html: await readBody(response) };
+    return { url: response.url, html: await readBody(response, url) };
   }
 
   async loadText(url: string): Promise<string> {
-    return readBody(await this.request(url, "text/plain"));
+    return readBody(await this.request(url, "text/plain"), url);
   }
 
   private async request(url: string, accept: string): Promise<Response> {
@@ -29,19 +32,19 @@ export class PageClientService {
       redirect: "follow",
       headers: { "user-agent": CRAWLER_USER_AGENT, accept },
       signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
-    }).catch(loadFailed);
+    }).catch((error: Error) => loadFailed(error, url));
 
     if (response.status !== 200) {
-      throw new PageLoadError(`Page responded with HTTP ${response.status}`);
+      throw new PageLoadError(`Answered with HTTP ${response.status}`, url);
     }
 
     return response;
   }
 }
 
-async function readBody(response: Response): Promise<string> {
+async function readBody(response: Response, url: string): Promise<string> {
   if (Number(response.headers.get("content-length")) > MAX_BYTES) {
-    throw new PageLoadError("Page is larger than 5 MB");
+    throw new PageLoadError("Answered with more than 5 MB", url);
   }
   if (!response.body) return "";
 
@@ -51,12 +54,14 @@ async function readBody(response: Response): Promise<string> {
   let bytes = 0;
 
   while (true) {
-    const { done, value } = await reader.read().catch(loadFailed);
+    const { done, value } = await reader
+      .read()
+      .catch((error: Error) => loadFailed(error, url));
     if (done) break;
     bytes += value.byteLength;
     if (bytes > MAX_BYTES) {
       await reader.cancel();
-      throw new PageLoadError("Page is larger than 5 MB");
+      throw new PageLoadError("Answered with more than 5 MB", url);
     }
     body += decoder.decode(value, { stream: true });
   }
@@ -64,8 +69,8 @@ async function readBody(response: Response): Promise<string> {
   return body + decoder.decode();
 }
 
-function loadFailed(error: Error): never {
+function loadFailed(error: Error, url: string): never {
   const cause =
     error.cause instanceof Error ? error.cause.message : error.message;
-  throw new PageLoadError(`Could not load page: ${cause}`);
+  throw new PageLoadError(cause, url);
 }

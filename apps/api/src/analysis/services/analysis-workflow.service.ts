@@ -1,18 +1,26 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { EmptySiteError } from "../../crawler/crawler.types.js";
+import { EmptySiteError, PageLoadError } from "../../crawler/crawler.types.js";
 import { SiteCrawlerService } from "../../crawler/services/site-crawler.service.js";
 import { AnalysisRepository } from "../repositories/analysis.repository.js";
 import { SemanticComparisonService } from "./semantic-comparison.service.js";
 
 export class SiteCrawlError extends Error {
   readonly reason: "unreachable" | "empty";
+  readonly url: string;
+  readonly detail: string;
 
   constructor(
     readonly site: "primary" | "competitor",
     cause: Error,
+    fallbackUrl: string,
   ) {
     super(`Could not crawl ${site} site: ${cause.message}`);
     this.reason = cause instanceof EmptySiteError ? "empty" : "unreachable";
+    this.url =
+      cause instanceof EmptySiteError || cause instanceof PageLoadError
+        ? cause.url
+        : fallbackUrl;
+    this.detail = cause.message;
   }
 }
 
@@ -79,7 +87,12 @@ export class AnalysisWorkflowService {
     await this.analyses.fail(
       id,
       error instanceof SiteCrawlError
-        ? { site: error.site, reason: error.reason }
+        ? {
+            site: error.site,
+            reason: error.reason,
+            url: error.url,
+            detail: error.detail,
+          }
         : { site: null, reason: "internal" },
     );
   }
@@ -95,7 +108,7 @@ export class AnalysisWorkflowService {
         await this.analyses.countCrawledPage(id);
       })
       .catch((error: Error) => {
-        throw new SiteCrawlError(site, error);
+        throw new SiteCrawlError(site, error, url);
       });
   }
 }

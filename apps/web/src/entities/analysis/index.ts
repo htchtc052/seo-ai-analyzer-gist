@@ -1,4 +1,4 @@
-export { analysisFailureMessage } from "./model/analysis-failure";
+export { analysisFailureReport } from "./model/analysis-failure";
 export {
   analysisInputSchema,
   analysisReceiptSchema,

@@ -123,11 +123,20 @@ function toEmbedded(run: RunRecord) {
 }
 
 function toFailure(run: RunRecord): AnalysisFailure {
-  if (run.failureSite === PageSource.PRIMARY && run.failureReason)
-    return { site: "primary", reason: toReason(run.failureReason) };
-  if (run.failureSite === PageSource.COMPETITOR && run.failureReason)
-    return { site: "competitor", reason: toReason(run.failureReason) };
-  return { site: null, reason: "internal" };
+  const site =
+    run.failureSite === PageSource.PRIMARY
+      ? "primary"
+      : run.failureSite === PageSource.COMPETITOR
+        ? "competitor"
+        : null;
+  if (!site || !run.failureReason || !run.failureUrl || !run.failureDetail)
+    return { site: null, reason: "internal" };
+  return {
+    site,
+    reason: toReason(run.failureReason),
+    url: run.failureUrl,
+    detail: run.failureDetail,
+  };
 }
 
 function toReason(reason: string): "unreachable" | "empty" {

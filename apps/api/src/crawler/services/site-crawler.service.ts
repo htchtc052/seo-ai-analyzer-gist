@@ -17,7 +17,7 @@ import { SitemapService } from "./sitemap.service.js";
 const VISITED_PAGE_FACTOR = 8;
 const MIN_VISITED_PAGES = 40;
 const MIN_CONTENT_LENGTH = 300;
-const DEFAULT_CRAWL_DELAY_MS = 250;
+const DEFAULT_CRAWL_DELAY_MS = 500;
 const MIN_TOKEN_LENGTH = 3;
 const MAX_SEEDED_URLS = 300;
 const CANDIDATE_FACTOR = 3;
@@ -125,7 +125,10 @@ export class SiteCrawlerService {
     }
 
     if (pages.length === 0) {
-      throw new EmptySiteError(`No readable pages found at ${startUrl}`);
+      throw new EmptySiteError(
+        `Visited ${visited} pages without finding readable text`,
+        normalizedStartUrl,
+      );
     }
 
     const selected = pages

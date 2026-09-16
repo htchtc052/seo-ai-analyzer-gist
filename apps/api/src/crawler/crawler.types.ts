@@ -29,5 +29,20 @@ export type ExtractedPage = {
   links: PageLink[];
 };
 
-export class PageLoadError extends Error {}
-export class EmptySiteError extends Error {}
+export class PageLoadError extends Error {
+  constructor(
+    message: string,
+    readonly url: string,
+  ) {
+    super(message);
+  }
+}
+
+export class EmptySiteError extends Error {
+  constructor(
+    message: string,
+    readonly url: string,
+  ) {
+    super(message);
+  }
+}

@@ -3,7 +3,12 @@ import type { AnalysisInputDto } from "./analysis-input.schema.js";
 
 export type AnalysisReceipt = { id: string; status: "queued" };
 export type AnalysisFailure =
-  | { site: "primary" | "competitor"; reason: "unreachable" | "empty" }
+  | {
+      site: "primary" | "competitor";
+      reason: "unreachable" | "empty";
+      url: string;
+      detail: string;
+    }
   | { site: null; reason: "internal" };
 export type CrawledSources = {
   primary: CrawledSite;

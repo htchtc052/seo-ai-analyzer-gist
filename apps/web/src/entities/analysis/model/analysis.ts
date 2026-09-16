@@ -108,6 +108,8 @@ export const analysisRunSchema = z.discriminatedUnion("status", [
       z.object({
         site: z.enum(["primary", "competitor"]),
         reason: z.enum(["unreachable", "empty"]),
+        url: z.string(),
+        detail: z.string(),
       }),
       z.object({ site: z.null(), reason: z.literal("internal") }),
     ]),
