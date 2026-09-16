@@ -50,12 +50,18 @@ function run(competitorParagraphs: string[][]): CompletedAnalysis {
   } as CompletedAnalysis;
 }
 
+function scoreOf(report: ReturnType<typeof buildAnalysisReport>): number {
+  const score = report.pages[0]!.score;
+  assert(score !== undefined);
+  return score;
+}
+
 test("weak fragments never raise a page score", () => {
   const short = buildAnalysisReport(run([["one strong", "weak"]]));
   const long = buildAnalysisReport(
     run([["one strong", ...Array.from({ length: 40 }, () => "weak")]]),
   );
-  assert(long.pages[0]!.score <= short.pages[0]!.score);
+  assert(scoreOf(long) <= scoreOf(short));
 });
 
 test("a short page about the query outranks a long page around it", () => {
