@@ -48,7 +48,7 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
         ours: false,
         title: page.title,
         url: page.url,
-        score: total(fragments.map((fragment) => fragment.score)),
+        score: topScore(fragments),
         bestScore: Math.max(...fragments.map((fragment) => fragment.score)),
         meanRelevance: mean(fragments.map((fragment) => fragment.relevance)),
         coverage: coverage(fragments),
