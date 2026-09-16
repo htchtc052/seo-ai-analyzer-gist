@@ -56,6 +56,7 @@ export class SiteCrawlerService {
     ];
     const discovered = new Set([urlKey(normalizedStartUrl)]);
     const loadedUrls = new Set<string>();
+    const seenContent = new Set<string>();
     const pages: CrawledSite["pages"] = [];
     let visited = 0;
     let origin = new URL(normalizedStartUrl).origin;
@@ -126,8 +127,12 @@ export class SiteCrawlerService {
           extracted.article &&
           contentLength(extracted.article.sections) >= MIN_CONTENT_LENGTH
         ) {
-          pages.push({ url: loadedUrl, ...extracted.article });
-          await onPage();
+          const fingerprint = contentFingerprint(extracted.article.sections);
+          if (!seenContent.has(fingerprint)) {
+            seenContent.add(fingerprint);
+            pages.push({ url: loadedUrl, ...extracted.article });
+            await onPage();
+          }
         }
       } catch (error) {
         if (!(error instanceof PageLoadError) || visited === 1) throw error;
@@ -256,17 +261,25 @@ function wait(ms: number): Promise<void> {
 function normalizeUrl(value: string): string {
   const url = new URL(value);
   url.hash = "";
-  url.search = "";
   return url.toString();
 }
 
 function urlKey(value: string): string {
   const url = new URL(value);
-  return `${url.origin}${normalizePath(url.pathname)}`;
+  return `${url.origin}${normalizePath(url.pathname)}${url.search}`;
 }
 
 function normalizePath(path: string): string {
   return path.replace(/\/+$/, "") || "/";
+}
+
+function contentFingerprint(
+  sections: CrawledSite["pages"][number]["sections"],
+): string {
+  return sections
+    .flatMap((section) => section.paragraphs)
+    .join(" ")
+    .slice(0, 400);
 }
 
 function contentLength(

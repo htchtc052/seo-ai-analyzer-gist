@@ -76,11 +76,12 @@ test("analysis boundary", async () => {
       response.end();
       return;
     }
+    const path = new URL(request.url!, "http://site.test").pathname;
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.end(`<!doctype html>
-      <html><head><title>${request.url}</title></head><body><main><article>
+      <html><head><title>${path}</title></head><body><main><article>
         <h1>Handmade rugs</h1>
-        <p>${"A detailed guide to handmade wool rugs, materials, care, sizing, and delivery. ".repeat(8)}</p>
+        <p>${`A guide to handmade wool rugs at ${path}, with materials, care, sizing and delivery. `.repeat(8)}</p>
         <a href="/catalog">Current page</a>
         <a href="/catalog/collection?language=en">Collection</a>
         <a href="/catalog/collection?language=de">Collection duplicate</a>
@@ -168,9 +169,13 @@ test("analysis boundary", async () => {
         ),
       );
       assert.equal(new Set(source.map((page) => page.url)).size, source.length);
-      assert(source.every((page) => new URL(page.url).search === ""));
       assert(
         source.some((page) => new URL(page.url).pathname === "/catalog-main"),
+      );
+      assert(
+        source.filter(
+          (page) => new URL(page.url).pathname === "/catalog/collection",
+        ).length <= 1,
       );
     }
     assert.equal(stored.embeddingModel, "test-embedding");

@@ -15,6 +15,7 @@ export class SitemapService {
   ) {}
 
   async collect(origin: string, sitemaps: string[]): Promise<string[]> {
+    const host = new URL(origin).hostname;
     const queue =
       sitemaps.length > 0 ? [...sitemaps] : [`${origin}/sitemap.xml`];
     const visited = new Set<string>();
@@ -31,9 +32,10 @@ export class SitemapService {
 
       const locations = await this.read(file);
       for (const location of locations) {
-        if (!location.startsWith(origin)) continue;
-        if (location.endsWith(".xml")) queue.push(location);
-        else urls.add(location);
+        const sameHost = toSameOrigin(location, origin, host);
+        if (!sameHost) continue;
+        if (sameHost.endsWith(".xml")) queue.push(sameHost);
+        else urls.add(sameHost);
       }
     }
 
@@ -49,5 +51,19 @@ export class SitemapService {
       return "";
     });
     return [...body.matchAll(LOCATION)].map((match) => match[1]!);
+  }
+}
+
+function toSameOrigin(
+  location: string,
+  origin: string,
+  host: string,
+): string | null {
+  try {
+    const url = new URL(location);
+    if (url.hostname !== host) return null;
+    return `${origin.replace(/\/$/, "")}${url.pathname}${url.search}`;
+  } catch {
+    return null;
   }
 }
