@@ -36,7 +36,6 @@ function toUrl(href: string, pageUrl: string): string | null {
     const url = new URL(href, pageUrl);
     if (!/^https?:$/.test(url.protocol)) return null;
     url.hash = "";
-    url.search = "";
     return url.toString();
   } catch {
     return null;

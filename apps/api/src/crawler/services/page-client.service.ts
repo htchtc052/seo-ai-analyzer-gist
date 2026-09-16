@@ -4,7 +4,8 @@ import { PageLoadError, type LoadedPage } from "../crawler.types.js";
 export const CRAWLER_USER_AGENT =
   "SeoAiAnalyzerGistBot/0.1 (+https://github.com/seo-ai-analyzer-gist)";
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_PAGE_BYTES = 5 * 1024 * 1024;
+const MAX_TEXT_BYTES = 64 * 1024 * 1024;
 const PAGE_TIMEOUT_MS = 10_000;
 
 @Injectable()
@@ -20,11 +21,14 @@ export class PageClientService {
       );
     }
 
-    return { url: response.url, html: await readBody(response, url) };
+    return {
+      url: response.url,
+      html: await readBody(response, url, MAX_PAGE_BYTES),
+    };
   }
 
   async loadText(url: string): Promise<string> {
-    return readBody(await this.request(url, "text/plain"), url);
+    return readBody(await this.request(url, "text/plain"), url, MAX_TEXT_BYTES);
   }
 
   private async request(url: string, accept: string): Promise<Response> {
@@ -42,9 +46,13 @@ export class PageClientService {
   }
 }
 
-async function readBody(response: Response, url: string): Promise<string> {
-  if (Number(response.headers.get("content-length")) > MAX_BYTES) {
-    throw new PageLoadError("Answered with more than 5 MB", url);
+async function readBody(
+  response: Response,
+  url: string,
+  maxBytes: number,
+): Promise<string> {
+  if (Number(response.headers.get("content-length")) > maxBytes) {
+    throw new PageLoadError(`Answered with more than ${maxBytes} bytes`, url);
   }
   if (!response.body) return "";
 
@@ -59,9 +67,9 @@ async function readBody(response: Response, url: string): Promise<string> {
       .catch((error: Error) => loadFailed(error, url));
     if (done) break;
     bytes += value.byteLength;
-    if (bytes > MAX_BYTES) {
+    if (bytes > maxBytes) {
       await reader.cancel();
-      throw new PageLoadError("Answered with more than 5 MB", url);
+      throw new PageLoadError(`Answered with more than ${maxBytes} bytes`, url);
     }
     body += decoder.decode(value, { stream: true });
   }
