@@ -61,11 +61,22 @@ export class SiteCrawlerService {
     let origin = new URL(normalizedStartUrl).origin;
     let robots = await this.robots.load(origin);
     let crawlDelayMs = crawlDelay(robots);
-    for (const url of await this.seedUrls(origin, robots, queryTokens)) {
+
+    const corpus =
+      queryTokens.length === 0
+        ? []
+        : await this.sitemaps.collect(origin, robots.getSitemaps());
+    const weights = weighTerms(queryTokens, corpus);
+    this.logger.log(
+      `${origin}: term weights ${[...weights]
+        .map(([term, weight]) => `${term}=${weight.toFixed(2)}`)
+        .join(" ")}`,
+    );
+    for (const url of seedUrls(weights, corpus)) {
       const key = urlKey(url);
       if (discovered.has(key)) continue;
       discovered.add(key);
-      frontier.push({ url, score: pathScore(queryTokens, url) });
+      frontier.push({ url, score: pathScore(weights, url) });
     }
     const maxVisitedPages = Math.max(
       MIN_VISITED_PAGES,
@@ -108,7 +119,7 @@ export class SiteCrawlerService {
           if (new URL(link.url).origin !== origin || discovered.has(key))
             continue;
           discovered.add(key);
-          frontier.push({ url: link.url, score: linkScore(queryTokens, link) });
+          frontier.push({ url: link.url, score: linkScore(weights, link) });
         }
 
         if (
@@ -132,7 +143,7 @@ export class SiteCrawlerService {
     }
 
     const selected = pages
-      .map((page) => ({ page, score: contentScore(queryTokens, page) }))
+      .map((page) => ({ page, score: contentScore(weights, page) }))
       .toSorted((left, right) => right.score - left.score)
       .slice(0, maxPages)
       .map((candidate) => candidate.page);
@@ -142,28 +153,19 @@ export class SiteCrawlerService {
 
     return { startUrl, pages: selected };
   }
+}
 
-  private async seedUrls(
-    origin: string,
-    robots: RobotRules,
-    queryTokens: string[],
-  ): Promise<string[]> {
-    if (queryTokens.length === 0) return [];
-    const urls = await this.sitemaps.collect(origin, robots.getSitemaps());
-    const scored = urls
-      .map((url) => ({ url, score: pathScore(queryTokens, url) }))
-      .filter((candidate) => candidate.score > 0)
-      .toSorted((left, right) => right.score - left.score)
-      .slice(0, MAX_SEEDED_URLS);
-    this.logger.log(
-      `${origin}: ${scored.length} of ${urls.length} sitemap urls match the query`,
-    );
-    return scored.map((candidate) => candidate.url);
-  }
+function seedUrls(weights: TermWeights, corpus: string[]): string[] {
+  return corpus
+    .map((url) => ({ url, score: pathScore(weights, url) }))
+    .filter((candidate) => candidate.score > 0)
+    .toSorted((left, right) => right.score - left.score)
+    .slice(0, MAX_SEEDED_URLS)
+    .map((candidate) => candidate.url);
 }
 
 function contentScore(
-  queryTokens: string[],
+  weights: TermWeights,
   page: CrawledSite["pages"][number],
 ): number {
   const text = [
@@ -173,17 +175,38 @@ function contentScore(
       ...section.paragraphs,
     ]),
   ].join(" ");
-  const pageTokens = new Set(tokenize(text));
-  return queryTokens.filter((queryToken) =>
-    [...pageTokens].some((pageToken) => sameTerm(pageToken, queryToken)),
-  ).length;
+  return matchScore(weights, tokenize(text));
 }
 
-function pathScore(queryTokens: string[], url: string): number {
-  const pathTokens = tokenize(new URL(url).pathname);
-  return queryTokens.filter((queryToken) =>
-    pathTokens.some((pathToken) => sameTerm(pathToken, queryToken)),
-  ).length;
+type TermWeights = Map<string, number>;
+
+function weighTerms(queryTokens: string[], corpus: string[]): TermWeights {
+  const weights: TermWeights = new Map();
+  if (corpus.length === 0) {
+    for (const token of queryTokens) weights.set(token, 1);
+    return weights;
+  }
+
+  const documents = corpus.map((url) => tokenize(new URL(url).pathname));
+  for (const queryToken of queryTokens) {
+    const frequency = documents.filter((document) =>
+      document.some((token) => sameTerm(token, queryToken)),
+    ).length;
+    weights.set(queryToken, Math.log(corpus.length / (1 + frequency)));
+  }
+  return weights;
+}
+
+function matchScore(weights: TermWeights, tokens: string[]): number {
+  let score = 0;
+  for (const [queryToken, weight] of weights) {
+    if (tokens.some((token) => sameTerm(token, queryToken))) score += weight;
+  }
+  return score;
+}
+
+function pathScore(weights: TermWeights, url: string): number {
+  return matchScore(weights, tokenize(new URL(url).pathname));
 }
 
 function takeBestLink(frontier: FrontierLink[]): FrontierLink {
@@ -194,11 +217,11 @@ function takeBestLink(frontier: FrontierLink[]): FrontierLink {
   return frontier.splice(bestIndex, 1)[0]!;
 }
 
-function linkScore(queryTokens: string[], link: PageLink): number {
-  const linkTokens = tokenize(`${link.text} ${new URL(link.url).pathname}`);
-  return queryTokens.filter((queryToken) =>
-    linkTokens.some((linkToken) => sameTerm(linkToken, queryToken)),
-  ).length;
+function linkScore(weights: TermWeights, link: PageLink): number {
+  return matchScore(
+    weights,
+    tokenize(`${link.text} ${new URL(link.url).pathname}`),
+  );
 }
 
 function sameTerm(left: string, right: string): boolean {

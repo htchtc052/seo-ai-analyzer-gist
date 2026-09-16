@@ -86,7 +86,7 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
   return {
     pages: [...competitorPages, ...primaryPages],
     summary: {
-      score: total(competitorPages.map((page) => page.score)),
+      score: mean(competitorPages.map((page) => page.score)),
       coverage: coverage(fragments),
       meanRelevance: mean(fragments.map((fragment) => fragment.relevance)),
       meanPrimaryRelevance: mean(
@@ -105,7 +105,7 @@ function toFragmentScore(
 }
 
 function topScore(fragments: FragmentScore[]): number {
-  return total(
+  return mean(
     fragments
       .map((fragment) => fragment.score)
       .toSorted((left, right) => right - left)
