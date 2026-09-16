@@ -1,0 +1,196 @@
+import {
+  AnalysisStatus,
+  PageSource,
+  Prisma,
+  type AnalysisPage,
+  type Fragment,
+} from "@prisma/client";
+import type {
+  AnalysisFailure,
+  AnalysisRun,
+  AnalysisSummary,
+  CrawledSite,
+  CrawledSources,
+} from "../dto/analysis.types.js";
+
+export const runInclude = Prisma.validator<Prisma.AnalysisInclude>()({
+  pages: {
+    orderBy: [{ source: "asc" }, { position: "asc" }],
+    include: {
+      fragments: {
+        orderBy: [{ sectionIndex: "asc" }, { paragraphIndex: "asc" }],
+        include: {
+          closestPrimaryFragment: {
+            select: {
+              sectionIndex: true,
+              paragraphIndex: true,
+              page: { select: { position: true } },
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+export const summarySelect = Prisma.validator<Prisma.AnalysisSelect>()({
+  id: true,
+  searchQuery: true,
+  status: true,
+  createdAt: true,
+  _count: { select: { pages: true } },
+});
+
+type RunRecord = Prisma.AnalysisGetPayload<{ include: typeof runInclude }>;
+type SummaryRecord = Prisma.AnalysisGetPayload<{
+  select: typeof summarySelect;
+}>;
+
+export function toAnalysisSummary(run: SummaryRecord): AnalysisSummary {
+  return {
+    id: run.id,
+    searchQuery: run.searchQuery,
+    status: run.status.toLowerCase() as AnalysisSummary["status"],
+    pageCount: run._count.pages,
+    createdAt: run.createdAt.toISOString(),
+  };
+}
+
+export function toAnalysisRun(run: RunRecord): AnalysisRun {
+  const base = {
+    id: run.id,
+    searchQuery: run.searchQuery,
+    primarySiteUrl: run.primarySiteUrl,
+    competitorSiteUrl: run.competitorSiteUrl,
+    maxPagesPerSite: run.maxPagesPerSite,
+    createdAt: run.createdAt.toISOString(),
+  };
+  const sources = toSources(run);
+
+  if (run.status === AnalysisStatus.QUEUED)
+    return { ...base, status: "queued" };
+  if (run.status === AnalysisStatus.CRAWLING)
+    return {
+      ...base,
+      status: "crawling",
+      progress: { done: run.crawledPages, total: null },
+    };
+  if (run.status === AnalysisStatus.CRAWLED)
+    return { ...base, status: "crawled", sources, progress: toEmbedded(run) };
+  if (run.status === AnalysisStatus.ANALYZING)
+    return { ...base, status: "analyzing", sources, progress: toEmbedded(run) };
+  if (run.status === AnalysisStatus.FAILED)
+    return {
+      ...base,
+      status: "failed",
+      ...(run.pages.length > 0 ? { sources } : {}),
+      error: toFailure(run),
+    };
+
+  return {
+    ...base,
+    status: "completed",
+    sources,
+    semantic: {
+      model: run.embeddingModel!,
+      primary: run.pages
+        .filter((page) => page.source === PageSource.PRIMARY)
+        .flatMap((page) =>
+          page.fragments.map((fragment) => ({
+            ref: toRef(page, fragment),
+            relevance: fragment.relevance!,
+          })),
+        ),
+      competitor: run.pages
+        .filter((page) => page.source === PageSource.COMPETITOR)
+        .flatMap((page) =>
+          page.fragments.map((fragment) => ({
+            ref: toRef(page, fragment),
+            relevance: fragment.relevance!,
+            maxPrimarySimilarity: fragment.maxPrimarySimilarity!,
+            closestPrimaryRef: toClosestRef(fragment),
+          })),
+        ),
+    },
+  };
+}
+
+function toEmbedded(run: RunRecord) {
+  return {
+    done: run.pages.filter((page) => page.embeddedAt).length,
+    total: run.pages.length,
+  };
+}
+
+function toFailure(run: RunRecord): AnalysisFailure {
+  if (run.failureSite === PageSource.PRIMARY && run.failureReason)
+    return { site: "primary", reason: toReason(run.failureReason) };
+  if (run.failureSite === PageSource.COMPETITOR && run.failureReason)
+    return { site: "competitor", reason: toReason(run.failureReason) };
+  return { site: null, reason: "internal" };
+}
+
+function toReason(reason: string): "unreachable" | "empty" {
+  return reason === "EMPTY" ? "empty" : "unreachable";
+}
+
+function toSources(run: RunRecord): CrawledSources {
+  return {
+    primary: toSource(run, PageSource.PRIMARY, run.primarySiteUrl),
+    competitor: toSource(run, PageSource.COMPETITOR, run.competitorSiteUrl),
+  };
+}
+
+function toSource(
+  run: RunRecord,
+  source: PageSource,
+  startUrl: string,
+): CrawledSite {
+  return {
+    startUrl,
+    pages: run.pages
+      .filter((page) => page.source === source)
+      .map((page) => ({
+        url: page.url,
+        title: page.title,
+        sections: toSections(page.fragments),
+      })),
+  };
+}
+
+function toSections(fragments: Fragment[]) {
+  const sections = new Map<
+    number,
+    { heading: string | null; paragraphs: string[] }
+  >();
+  for (const fragment of fragments) {
+    const section = sections.get(fragment.sectionIndex) ?? {
+      heading: fragment.heading,
+      paragraphs: [],
+    };
+    section.paragraphs.push(fragment.text);
+    sections.set(fragment.sectionIndex, section);
+  }
+  return [...sections.entries()]
+    .toSorted(([left], [right]) => left - right)
+    .map(([, section]) => section);
+}
+
+function toRef(page: AnalysisPage, fragment: Fragment) {
+  return {
+    pageIndex: page.position,
+    sectionIndex: fragment.sectionIndex,
+    paragraphIndex: fragment.paragraphIndex,
+  };
+}
+
+function toClosestRef(
+  fragment: RunRecord["pages"][number]["fragments"][number],
+) {
+  const closest = fragment.closestPrimaryFragment!;
+  return {
+    pageIndex: closest.page.position,
+    sectionIndex: closest.sectionIndex,
+    paragraphIndex: closest.paragraphIndex,
+  };
+}

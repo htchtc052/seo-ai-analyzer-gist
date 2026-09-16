@@ -1,0 +1,17 @@
+.git
+.github
+.claude
+.idea
+.vscode
+docs
+infra
+
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+
+**/.env
+**/.env.*
+
+**/*.log
+**/.DS_Store

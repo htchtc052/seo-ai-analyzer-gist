@@ -1,0 +1,1 @@
+ALTER TABLE "Analysis" ADD COLUMN "crawledPages" INTEGER NOT NULL DEFAULT 0;
