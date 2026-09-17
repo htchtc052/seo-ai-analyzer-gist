@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router";
 import type { AnalysisRun } from "@/entities/analysis";
 import {
@@ -7,13 +7,7 @@ import {
   useAnalysis,
 } from "@/entities/analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { Card, CardContent } from "@/shared/ui/card";
 import { AnalysisReport } from "@/widgets/analysis-report";
 
 function FailureAlert({
