@@ -1,17 +1,62 @@
-export type AnalysisReceipt = {
-  id: string;
-  status: "queued";
-};
+export type AnalysisStatusDto = "queued" | "running" | "completed" | "failed";
+
+export type AnalysisReceipt = { id: string; status: "queued" };
 
 export type AnalysisSummary = {
   id: string;
   searchQuery: string;
-  status: "queued" | "running" | "completed" | "failed";
+  status: AnalysisStatusDto;
   competitorCount: number;
   createdAt: string;
 };
 
-export type AnalysisRun = AnalysisSummary & {
+export type AnalysisFailure = {
+  reason: "unreachable" | "empty" | "internal";
+  url: string | null;
+  detail: string | null;
+};
+
+// Строка отчёта. Новизна и приоритет у нашей страницы отсутствуют:
+// сравнивать её с самой собой нечем.
+export type ReportPage = {
+  url: string;
+  title: string | null;
+  ours: boolean;
+  fragmentCount: number;
+  relevance: number;
+  novelty: number | null;
+  priority: number | null;
+};
+
+type AnalysisBase = {
+  id: string;
+  searchQuery: string;
   primaryUrl: string;
   competitorUrls: string[];
+  createdAt: string;
+};
+
+export type AnalysisRun =
+  | (AnalysisBase & { status: "queued" })
+  | (AnalysisBase & {
+      status: "running";
+      progress: { done: number; total: number };
+    })
+  | (AnalysisBase & {
+      status: "completed";
+      model: string;
+      pages: ReportPage[];
+    })
+  | (AnalysisBase & { status: "failed"; error: AnalysisFailure });
+
+export type FragmentInput = {
+  sectionIndex: number;
+  paragraphIndex: number;
+  heading: string | null;
+  text: string;
+};
+
+export type EmbeddedFragment = FragmentInput & {
+  embedding: number[];
+  relevance: number;
 };

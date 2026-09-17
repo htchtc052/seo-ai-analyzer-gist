@@ -1,0 +1,93 @@
+import { Inject, Injectable } from "@nestjs/common";
+import { FailureReason } from "@prisma/client";
+import { EmptyPageError, PageLoadError } from "../../pages/pages.types.js";
+import { ContentExtractorService } from "../../pages/services/content-extractor.service.js";
+import { PageClientService } from "../../pages/services/page-client.service.js";
+import type { FragmentInput } from "../dto/analysis.types.js";
+import { AnalysisRepository } from "../repositories/analysis.repository.js";
+import { SemanticComparisonService } from "./semantic-comparison.service.js";
+
+@Injectable()
+export class AnalysisWorkflowService {
+  constructor(
+    @Inject(AnalysisRepository)
+    private readonly analyses: AnalysisRepository,
+    @Inject(PageClientService)
+    private readonly client: PageClientService,
+    @Inject(ContentExtractorService)
+    private readonly extractor: ContentExtractorService,
+    @Inject(SemanticComparisonService)
+    private readonly semantics: SemanticComparisonService,
+  ) {}
+
+  // Возвращает true, когда эта страница была последней и пора считать отчёт.
+  async embedPage(analysisId: string, pageId: string): Promise<boolean> {
+    await this.analyses.markRunning(analysisId);
+    const page = await this.analyses.findPage(pageId);
+    // Страницы нет — значит анализ удалили, пока работа ждала очереди.
+    if (!page) return false;
+    if (page.analysisId !== analysisId)
+      throw new Error("Analysis page belongs to another analysis");
+    if (page.embeddedAt)
+      return (await this.analyses.countPendingPages(analysisId)) === 0;
+
+    const { html } = await this.client.load(page.url);
+    const { article } = this.extractor.extract(html);
+    if (!article)
+      throw new EmptyPageError("Не нашли читаемый текст статьи", page.url);
+
+    const fragments = toFragments(article.sections);
+    if (fragments.length === 0)
+      throw new EmptyPageError("В статье нет пригодных абзацев", page.url);
+
+    const embedded = await this.semantics.embedPage(
+      page.analysis.searchQuery,
+      fragments,
+    );
+    const remaining = await this.analyses.savePage(
+      pageId,
+      article.title,
+      embedded,
+    );
+    return remaining === 0;
+  }
+
+  async finalize(id: string): Promise<void> {
+    const { ours, theirs } = await this.analyses.findVectors(id);
+    const similarities = this.semantics.similarities(ours, theirs);
+    await this.analyses.complete(id, this.semantics.model, similarities);
+  }
+
+  async fail(id: string, error: Error): Promise<void> {
+    await this.analyses.fail(id, toFailure(error));
+  }
+}
+
+function toFragments(
+  sections: Array<{ heading: string | null; paragraphs: string[] }>,
+): FragmentInput[] {
+  return sections.flatMap((section, sectionIndex) =>
+    section.paragraphs.map((text, paragraphIndex) => ({
+      sectionIndex,
+      paragraphIndex,
+      heading: section.heading,
+      text,
+    })),
+  );
+}
+
+function toFailure(error: Error) {
+  if (error instanceof EmptyPageError)
+    return {
+      reason: FailureReason.EMPTY,
+      url: error.url,
+      detail: error.message,
+    };
+  if (error instanceof PageLoadError)
+    return {
+      reason: FailureReason.UNREACHABLE,
+      url: error.url,
+      detail: error.message,
+    };
+  return { reason: FailureReason.INTERNAL, url: null, detail: error.message };
+}

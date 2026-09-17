@@ -1,11 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { PageLoadError, type LoadedPage } from "../pages.types.js";
 
-export const CRAWLER_USER_AGENT =
+export const USER_AGENT =
   "SeoAiAnalyzerGistBot/0.1 (+https://github.com/seo-ai-analyzer-gist)";
 
 const MAX_PAGE_BYTES = 5 * 1024 * 1024;
-const MAX_TEXT_BYTES = 64 * 1024 * 1024;
 const PAGE_TIMEOUT_MS = 10_000;
 
 @Injectable()
@@ -27,14 +26,10 @@ export class PageClientService {
     };
   }
 
-  async loadText(url: string): Promise<string> {
-    return readBody(await this.request(url, "text/plain"), url, MAX_TEXT_BYTES);
-  }
-
   private async request(url: string, accept: string): Promise<Response> {
     const response = await fetch(url, {
       redirect: "follow",
-      headers: { "user-agent": CRAWLER_USER_AGENT, accept },
+      headers: { "user-agent": USER_AGENT, accept },
       signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
     }).catch((error: Error) => loadFailed(error, url));
 

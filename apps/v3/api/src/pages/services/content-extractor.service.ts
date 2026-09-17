@@ -12,19 +12,11 @@ const MIN_PARAGRAPH_LENGTH = 40;
 
 @Injectable()
 export class ContentExtractorService {
-  extract(html: string, pageUrl: string): ExtractedPage {
+  extract(html: string): ExtractedPage {
     const { document } = parseHTML(html);
-    const links = Array.from(document.querySelectorAll("a[href]"), (link) => ({
-      href: link.getAttribute("href"),
-      text: normalize(link.textContent ?? ""),
-    })).flatMap(({ href, text }) => {
-      const url = href ? toUrl(href, pageUrl) : null;
-      return url ? [{ url, text }] : [];
-    });
-
     const publishedAt = toPublishedAt(document);
     const parsed = new Readability(document).parse();
-    if (!parsed?.content) return { article: null, links };
+    if (!parsed?.content) return { article: null };
 
     return {
       article: {
@@ -32,7 +24,6 @@ export class ContentExtractorService {
         publishedAt,
         sections: toSections(parsed.content),
       },
-      links,
     };
   }
 }
@@ -102,17 +93,6 @@ function toDate(value: string | null | undefined): Date | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function toUrl(href: string, pageUrl: string): string | null {
-  try {
-    const url = new URL(href, pageUrl);
-    if (!/^https?:$/.test(url.protocol)) return null;
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return null;
-  }
 }
 
 function toSections(html: string): ExtractedSection[] {

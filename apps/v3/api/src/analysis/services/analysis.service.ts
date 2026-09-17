@@ -6,16 +6,29 @@ import type {
   AnalysisSummary,
 } from "../dto/analysis.types.js";
 import { AnalysisRepository } from "../repositories/analysis.repository.js";
+import { AnalysisQueueService } from "./analysis-queue.service.js";
+import { AnalysisWorkflowService } from "./analysis-workflow.service.js";
 
 @Injectable()
 export class AnalysisService {
   constructor(
     @Inject(AnalysisRepository)
     private readonly analyses: AnalysisRepository,
+    @Inject(AnalysisWorkflowService)
+    private readonly workflow: AnalysisWorkflowService,
+    @Inject(AnalysisQueueService)
+    private readonly queue: AnalysisQueueService,
   ) {}
 
   async analyze(input: AnalysisInputDto): Promise<AnalysisReceipt> {
-    return { id: await this.analyses.create(input), status: "queued" };
+    const { id, pageIds } = await this.analyses.create(input);
+    try {
+      await this.queue.enqueuePages(id, pageIds);
+    } catch (error) {
+      await this.workflow.fail(id, error as Error);
+      throw error;
+    }
+    return { id, status: "queued" };
   }
 
   async find(id: string): Promise<AnalysisRun> {
