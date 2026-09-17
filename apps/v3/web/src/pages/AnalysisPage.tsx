@@ -35,7 +35,7 @@ export function AnalysisPage() {
         <DeleteAnalysisButton id={run.id} searchQuery={run.searchQuery} />
       </header>
 
-      <AnalysisProgress run={run} />
+      {run.status !== "completed" && <AnalysisProgress run={run} />}
 
       {run.status === "failed" && (
         <Failure report={analysisFailureReport(run)} />

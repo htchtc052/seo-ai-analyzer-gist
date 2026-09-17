@@ -80,7 +80,7 @@ export function AnalysisPage() {
               · обход до {run.crawlPagesPerSite} страниц с каждого
             </p>
           </header>
-          <AnalysisProgress run={run} />
+          {run.status !== "completed" && <AnalysisProgress run={run} />}
           {run.status === "completed" && (
             <Card>
               <CardContent>
