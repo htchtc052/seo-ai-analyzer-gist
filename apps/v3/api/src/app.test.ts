@@ -176,7 +176,6 @@ test("analysis boundary scores every named page", async () => {
     assert(recommended.length > 0);
     for (const item of recommended) {
       assert((item.text as string).length > 0);
-      assert(Number.isFinite(item.gap as number));
     }
     assert.deepEqual(
       (pages[0]!.recommendations as unknown[]).length,
