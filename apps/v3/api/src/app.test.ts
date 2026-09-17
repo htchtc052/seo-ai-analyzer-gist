@@ -170,15 +170,19 @@ test("analysis boundary scores every named page", async () => {
       "rivals must be ordered by priority",
     );
 
-    const recommendations = run!.recommendations as Array<
-      Record<string, unknown>
-    >;
-    assert(recommendations.length > 0);
-    for (const item of recommendations) {
-      assert(input.competitorUrls.includes(item.url as string));
+    const recommended = rivals.flatMap(
+      (page) => page.recommendations as Array<Record<string, unknown>>,
+    );
+    assert(recommended.length > 0);
+    for (const item of recommended) {
       assert((item.text as string).length > 0);
       assert(Number.isFinite(item.gap as number));
     }
+    assert.deepEqual(
+      (pages[0]!.recommendations as unknown[]).length,
+      0,
+      "our own page is never recommended",
+    );
     const scores = run!.selection as Record<string, number>;
     assert(Number.isFinite(scores.objective));
   } finally {

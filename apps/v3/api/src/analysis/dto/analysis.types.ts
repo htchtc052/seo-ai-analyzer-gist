@@ -24,13 +24,12 @@ export type ReportPage = { url: string; ours: boolean } & (
       relevance: number;
       novelty: number | null;
       priority: number | null;
+      recommendations: Recommendation[];
     }
   | { status: "failed"; reason: "unreachable" | "empty"; detail: string }
 );
 
 export type Recommendation = {
-  url: string;
-  title: string;
   heading: string | null;
   text: string;
   gap: number;
@@ -60,7 +59,6 @@ export type AnalysisRun =
       status: "completed";
       model: string;
       pages: ReportPage[];
-      recommendations: Recommendation[];
       selection: SelectionScores;
     })
   | (AnalysisBase & { status: "failed"; error: AnalysisFailure });

@@ -17,7 +17,15 @@ export const runInclude = Prisma.validator<Prisma.AnalysisInclude>()({
       embeddedAt: true,
       failureReason: true,
       failureDetail: true,
-      fragments: { select: { relevance: true, similarity: true } },
+      fragments: {
+        select: {
+          relevance: true,
+          similarity: true,
+          selectedRank: true,
+          heading: true,
+          text: true,
+        },
+      },
     },
   },
 });
@@ -55,29 +63,7 @@ export function toAnalysisSummary(run: SummaryRecord): AnalysisSummary {
   };
 }
 
-type RecommendationRecord = Prisma.FragmentGetPayload<{
-  select: typeof recommendationSelect;
-}>;
-
-export function toRecommendations(
-  fragments: RecommendationRecord[],
-): Recommendation[] {
-  return fragments
-    .toSorted((left, right) => left.selectedRank! - right.selectedRank!)
-    .map((fragment) => ({
-      url: fragment.page.url,
-      title: fragment.page.title!,
-      heading: fragment.heading,
-      text: fragment.text,
-      gap:
-        clamp(fragment.relevance ?? 0) * (1 - clamp(fragment.similarity ?? 0)),
-    }));
-}
-
-export function toAnalysisRun(
-  run: RunRecord,
-  recommendations: Recommendation[],
-): AnalysisRun {
+export function toAnalysisRun(run: RunRecord): AnalysisRun {
   const base = {
     id: run.id,
     searchQuery: run.searchQuery,
@@ -111,7 +97,6 @@ export function toAnalysisRun(
     status: "completed",
     model: run.embeddingModel!,
     pages: toReportPages(run.pages),
-    recommendations,
     selection: {
       objective: run.selectionObjective!,
       utility: run.selectionUtility!,
@@ -163,7 +148,20 @@ function toReportPage(page: RunPage): ReportPage {
     relevance,
     novelty,
     priority: novelty === null ? null : relevance * novelty,
+    recommendations: toRecommendations(page.fragments),
   };
+}
+
+function toRecommendations(fragments: RunPage["fragments"]): Recommendation[] {
+  return fragments
+    .filter((fragment) => fragment.selectedRank !== null)
+    .toSorted((left, right) => left.selectedRank! - right.selectedRank!)
+    .map((fragment) => ({
+      heading: fragment.heading,
+      text: fragment.text,
+      gap:
+        clamp(fragment.relevance ?? 0) * (1 - clamp(fragment.similarity ?? 0)),
+    }));
 }
 
 function toFailure(run: RunRecord): AnalysisFailure {

@@ -9,7 +9,6 @@ import { SelectionClientService } from "../../selection/services/selection-clien
 import { SemanticComparisonService } from "./semantic-comparison.service.js";
 
 const RECOMMENDATION_COUNT = 5;
-const MIN_RECOMMENDATION_LENGTH = 150;
 
 @Injectable()
 export class AnalysisWorkflowService {
@@ -66,17 +65,15 @@ export class AnalysisWorkflowService {
     const gaps = new Map(
       similarities.map((entry) => [entry.id, entry.similarity]),
     );
-    const candidates = theirs
-      .filter((fragment) => fragment.text.length >= MIN_RECOMMENDATION_LENGTH)
-      .map((fragment) => ({
-        id: fragment.id,
-        embedding: fragment.embedding,
-        weight: toGap(fragment.relevance, gaps.get(fragment.id)),
-      }));
-    const selection =
-      candidates.length === 0
-        ? { ids: [], objective: 0, utility: 0, diversity: 0 }
-        : await this.selection.select(candidates, RECOMMENDATION_COUNT);
+    const candidates = theirs.map((fragment) => ({
+      id: fragment.id,
+      embedding: fragment.embedding,
+      weight: toGap(fragment.relevance, gaps.get(fragment.id)),
+    }));
+    const selection = await this.selection.select(
+      candidates,
+      RECOMMENDATION_COUNT,
+    );
 
     await this.analyses.complete(
       id,

@@ -1,4 +1,10 @@
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import type {
+  CompletedAnalysis,
+  Recommendation,
+  ReportPage,
+} from "@/entities/analysis";
 import {
   Table,
   TableBody,
@@ -7,12 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
-import type { CompletedAnalysis, ReportPage } from "@/entities/analysis";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { cn } from "cn";
 import { ColumnHelp } from "./ColumnHelp";
 import { formatPercent, formatScore } from "./report-format";
 
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
+  const [opened, setOpened] = useState<string | null>(null);
+
   return (
     <TooltipProvider>
       <section className="grid gap-3">
@@ -41,7 +49,7 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                     label="Новизна"
                     reference="страницы относительно нашей"
                     formula="Σ(релевантность × (1 − похожесть)) ÷ Σ релевантность"
-                    note="Какая доля релевантного содержания страницы не похожа на нашу. Похожесть фрагмента — наибольший cos до фрагментов нашей страницы, поэтому величина относительна: она зависит от того, что написано именно у нас. У нашей страницы новизны нет — сравнивать её с самой собой нечем."
+                    note="Какая доля релевантного содержания страницы не похожа на нашу. Похожесть фрагмента — наибольший cos до фрагментов нашей страницы, поэтому величина относительна и зависит от того, что написано именно у нас. Короткий абзац почти всегда выглядит новее длинного: совпасть ему не с чем. У нашей страницы новизны нет — сравнивать её с самой собой нечем."
                   />
                 </TableHead>
                 <TableHead className="text-right">
@@ -59,57 +67,143 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                     note="Сколько абзацев извлеклось из статьи. Влияет на устойчивость остальных чисел: по трём абзацам средние шумят."
                   />
                 </TableHead>
+                <TableHead className="text-right">
+                  <ColumnHelp
+                    label="Рекомендаций"
+                    formula="сколько абзацев этой страницы выбрал GIST"
+                    note="Отбор идёт не по страницам, а сразу по всем абзацам конкурентов: GIST берёт пять, которые ценны и при этом не повторяют друг друга. Поэтому прочерк не значит, что страница плохая — он значит, что её сильные абзацы говорят о том же, что уже взято с другой страницы. Нажмите на число, чтобы увидеть выбранные абзацы."
+                  />
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {run.pages.map((page) => (
-                <Row key={page.url} page={page} />
+                <Row
+                  key={page.url}
+                  page={page}
+                  opened={opened === page.url}
+                  onToggle={() =>
+                    setOpened(opened === page.url ? null : page.url)
+                  }
+                />
               ))}
             </TableBody>
           </Table>
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          Отбор GIST по всем страницам: ценность{" "}
+          {formatScore(run.selection.utility)}, разнообразие{" "}
+          {formatScore(run.selection.diversity)}, итог{" "}
+          {formatScore(run.selection.objective)}. Ценность — сумма разрывов
+          выбранных абзацев, разнообразие — наименьшее расстояние между ними.
+        </p>
       </section>
     </TooltipProvider>
   );
 }
 
-function Row({ page }: { page: ReportPage }) {
+function Row({
+  page,
+  opened,
+  onToggle,
+}: {
+  page: ReportPage;
+  opened: boolean;
+  onToggle: () => void;
+}) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
   return (
-    <TableRow className={page.ours ? "bg-muted/40" : undefined}>
-      <TableCell>
-        <a
-          href={page.url}
-          target="_blank"
-          rel="noreferrer"
-          className="group grid max-w-xl gap-1 whitespace-normal"
-        >
-          <span className="text-xs text-muted-foreground">
-            {page.ours ? "наша страница" : "конкурент"}
-          </span>
-          <span className="flex items-start gap-2 leading-5 font-medium group-hover:text-primary">
-            {page.title}
-            <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {page.url}
-          </span>
-        </a>
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatScore(page.relevance)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
-      </TableCell>
-      <TableCell className="text-right font-medium tabular-nums">
-        {page.priority === null ? <Dash /> : formatScore(page.priority)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {page.fragmentCount}
-      </TableCell>
-    </TableRow>
+    <>
+      <TableRow className={page.ours ? "bg-muted/40" : undefined}>
+        <TableCell>
+          <PageLink page={page} />
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {formatScore(page.relevance)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
+        </TableCell>
+        <TableCell className="text-right font-medium tabular-nums">
+          {page.priority === null ? <Dash /> : formatScore(page.priority)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {page.fragmentCount}
+        </TableCell>
+        <TableCell className="text-right">
+          {page.recommendations.length === 0 ? (
+            <Dash />
+          ) : (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={opened}
+              className="inline-flex items-center gap-1 tabular-nums hover:text-primary"
+            >
+              {page.recommendations.length}
+              <ChevronDown
+                className={cn(
+                  "size-3.5 transition-transform",
+                  opened && "rotate-180",
+                )}
+              />
+            </button>
+          )}
+        </TableCell>
+      </TableRow>
+
+      {opened && (
+        <TableRow className="bg-muted/20 hover:bg-muted/20">
+          <TableCell colSpan={6}>
+            <ol className="grid gap-3">
+              {page.recommendations.map((item, index) => (
+                <Quote key={index} item={item} />
+              ))}
+            </ol>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+function Quote({ item }: { item: Recommendation }) {
+  return (
+    <li className="grid gap-1 border-l-2 pl-3">
+      <div className="flex items-baseline justify-between gap-4 text-xs text-muted-foreground">
+        <span>{item.heading ?? "без заголовка"}</span>
+        <span className="shrink-0 tabular-nums">
+          разрыв {formatScore(item.gap)}
+        </span>
+      </div>
+      <p className="text-sm leading-6 whitespace-normal">{item.text}</p>
+    </li>
+  );
+}
+
+function PageLink({
+  page,
+}: {
+  page: Extract<ReportPage, { status: "scored" }>;
+}) {
+  return (
+    <a
+      href={page.url}
+      target="_blank"
+      rel="noreferrer"
+      className="group grid max-w-xl gap-1 whitespace-normal"
+    >
+      <span className="text-xs text-muted-foreground">
+        {page.ours ? "наша страница" : "конкурент"}
+      </span>
+      <span className="flex items-start gap-2 leading-5 font-medium group-hover:text-primary">
+        {page.title}
+        <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+      </span>
+      <span className="truncate text-xs text-muted-foreground">{page.url}</span>
+    </a>
   );
 }
 
@@ -136,7 +230,7 @@ function FailedRow({
           </span>
         </a>
       </TableCell>
-      <TableCell colSpan={4} className="text-sm">
+      <TableCell colSpan={5} className="text-sm">
         {page.reason === "empty"
           ? "Читаемого текста статьи не нашлось"
           : "Страница не открылась"}

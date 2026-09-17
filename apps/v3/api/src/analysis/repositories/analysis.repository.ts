@@ -9,12 +9,10 @@ import type {
   EmbeddedFragment,
 } from "../dto/analysis.types.js";
 import {
-  recommendationSelect,
   runInclude,
   summarySelect,
   toAnalysisRun,
   toAnalysisSummary,
-  toRecommendations,
 } from "../mappers/analysis.mapper.js";
 
 @Injectable()
@@ -51,13 +49,7 @@ export class AnalysisRepository {
       where: { id },
       include: runInclude,
     });
-    if (!run) return null;
-
-    const selected = await this.prisma.fragment.findMany({
-      where: { page: { analysisId: id }, selectedRank: { not: null } },
-      select: recommendationSelect,
-    });
-    return toAnalysisRun(run, toRecommendations(selected));
+    return run ? toAnalysisRun(run) : null;
   }
 
   async list(): Promise<AnalysisSummary[]> {
@@ -146,7 +138,7 @@ export class AnalysisRepository {
       select: {
         source: true,
         fragments: {
-          select: { id: true, embedding: true, relevance: true, text: true },
+          select: { id: true, embedding: true, relevance: true },
         },
       },
     });

@@ -46,13 +46,12 @@ export type ReportPage = { url: string; ours: boolean } & (
       relevance: number;
       novelty: number | null;
       priority: number | null;
+      recommendations: Recommendation[];
     }
   | { status: "failed"; reason: "unreachable" | "empty"; detail: string }
 );
 
 export type Recommendation = {
-  url: string;
-  title: string;
   heading: string | null;
   text: string;
   gap: number;
@@ -81,7 +80,6 @@ export type CompletedAnalysis = AnalysisBase & {
   status: "completed";
   model: string;
   pages: ReportPage[];
-  recommendations: Recommendation[];
   selection: SelectionScores;
 };
 export type FailedAnalysis = AnalysisBase & {
