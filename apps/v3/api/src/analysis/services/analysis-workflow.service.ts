@@ -8,7 +8,9 @@ import { AnalysisRepository } from "../repositories/analysis.repository.js";
 import { SelectionClientService } from "../../selection/services/selection-client.service.js";
 import { SemanticComparisonService } from "./semantic-comparison.service.js";
 
-const RECOMMENDATION_COUNT = 5;
+const RECOMMENDATION_COUNT = 8;
+const MIN_CANDIDATE_LENGTH = 150;
+const MIN_CANDIDATE_RELEVANCE = 0.35;
 
 @Injectable()
 export class AnalysisWorkflowService {
@@ -65,15 +67,24 @@ export class AnalysisWorkflowService {
     const gaps = new Map(
       similarities.map((entry) => [entry.id, entry.similarity]),
     );
-    const candidates = theirs.map((fragment) => ({
-      id: fragment.id,
-      embedding: fragment.embedding,
-      weight: toGap(fragment.relevance, gaps.get(fragment.id)),
-    }));
-    const selection = await this.selection.select(
-      candidates,
-      RECOMMENDATION_COUNT,
-    );
+    const candidates = theirs
+      .filter(
+        (fragment) =>
+          fragment.text.length >= MIN_CANDIDATE_LENGTH &&
+          clamp(fragment.relevance ?? 0) >= MIN_CANDIDATE_RELEVANCE,
+      )
+      .map((fragment) => ({
+        id: fragment.id,
+        embedding: fragment.embedding,
+        weight: toGap(fragment.relevance, gaps.get(fragment.id)),
+      }));
+    const selection =
+      candidates.length === 0
+        ? { ids: [] }
+        : await this.selection.select(
+            candidates,
+            Math.min(RECOMMENDATION_COUNT, candidates.length),
+          );
 
     await this.analyses.complete(
       id,

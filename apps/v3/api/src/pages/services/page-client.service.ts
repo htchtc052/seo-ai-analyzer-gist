@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { setTimeout } from "node:timers/promises";
 import { PageLoadError, type LoadedPage } from "../pages.types.js";
 
 export const USER_AGENT =
@@ -27,11 +28,25 @@ export class PageClientService {
   }
 
   private async request(url: string, accept: string): Promise<Response> {
-    const response = await fetch(url, {
-      redirect: "follow",
-      headers: { "user-agent": USER_AGENT, accept },
-      signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
-    }).catch((error: Error) => loadFailed(error, url));
+    let failure: Error | undefined;
+    let response: Response | undefined;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await fetch(url, {
+          redirect: "follow",
+          headers: { "user-agent": USER_AGENT, accept },
+          signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+        });
+        break;
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+        failure = error;
+        if (attempt === 0) await setTimeout(500);
+      }
+    }
+
+    if (!response) return loadFailed(failure!, url);
 
     if (response.status !== 200) {
       throw new PageLoadError(`Answered with HTTP ${response.status}`, url);

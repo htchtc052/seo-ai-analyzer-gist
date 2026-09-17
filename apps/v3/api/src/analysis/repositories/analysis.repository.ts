@@ -138,7 +138,7 @@ export class AnalysisRepository {
       select: {
         source: true,
         fragments: {
-          select: { id: true, embedding: true, relevance: true },
+          select: { id: true, embedding: true, relevance: true, text: true },
         },
       },
     });
