@@ -75,9 +75,15 @@ export function AnalysisPage() {
               {run.searchQuery}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Домен {hostname(run.primarySiteUrl)} против домена{" "}
-              {hostname(run.competitorSiteUrl)} · обход до{" "}
-              {run.crawlPagesPerSite} страниц с каждого
+              Наш сайт{" "}
+              <span className="font-semibold text-foreground">
+                {hostname(run.primarySiteUrl)}
+              </span>{" "}
+              · конкурент{" "}
+              <span className="font-semibold text-foreground">
+                {hostname(run.competitorSiteUrl)}
+              </span>{" "}
+              · обход до {run.crawlPagesPerSite} страниц с каждого
             </p>
           </header>
           <AnalysisProgress run={run} />

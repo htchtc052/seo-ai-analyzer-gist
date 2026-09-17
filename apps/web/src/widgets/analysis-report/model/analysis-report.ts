@@ -1,134 +1,147 @@
 import type { CompletedAnalysis, SemanticReport } from "@/entities/analysis";
 
-const TOP_FRAGMENTS = 5;
-const RECOMMENDED_SHARE = 3;
-
 type FragmentScore = {
   relevance: number;
   similarity: number;
-  score: number;
 };
 
 export type AnalysisPageRow = {
   id: string;
   domain: string;
   ours: boolean;
-  recommended: boolean;
   title: string;
   url: string;
-  score: number | undefined;
-  bestScore: number | undefined;
-  meanRelevance: number;
-  coverage: number | undefined;
+  priority: number | undefined;
+  novelty: number | undefined;
+  relevance: number;
+  bestFragment: number | undefined;
   fragmentCount: number;
 };
 
+export type AnalysisDomainRow = {
+  domain: string;
+  ours: boolean;
+  pageCount: number;
+  fragmentCount: number;
+  relevance: number;
+  novelty: number | undefined;
+};
+
 export type AnalysisReport = {
+  domains: AnalysisDomainRow[];
   pages: AnalysisPageRow[];
-  summary: {
-    score: number;
-    coverage: number;
-    meanRelevance: number;
-    meanPrimaryRelevance: number;
-  };
 };
 
 export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
-  const scoresByPage = new Map<number, FragmentScore[]>();
-  for (const score of run.semantic.competitor) {
-    const page = scoresByPage.get(score.ref.pageIndex) ?? [];
-    page.push(toFragmentScore(score));
-    scoresByPage.set(score.ref.pageIndex, page);
-  }
+  const competitorByPage = groupByPage(
+    run.semantic.competitor,
+    toFragmentScore,
+  );
+  const primaryByPage = groupByPage(run.semantic.primary, toFragmentScore);
 
   const competitorPages = run.sources.competitor.pages
     .map((page, pageIndex) => {
-      const fragments = scoresByPage.get(pageIndex)!;
+      const fragments = competitorByPage.get(pageIndex) ?? [];
+      const relevance = meanRelevance(fragments);
+      const pageNovelty = novelty(fragments);
       return {
         id: page.url,
         domain: new URL(page.url).hostname,
         ours: false,
-        recommended: false,
         title: page.title,
         url: page.url,
-        score: topScore(fragments),
-        bestScore: Math.max(...fragments.map((fragment) => fragment.score)),
-        meanRelevance: mean(fragments.map((fragment) => fragment.relevance)),
-        coverage: coverage(fragments),
+        priority: relevance * pageNovelty,
+        novelty: pageNovelty,
+        relevance,
+        bestFragment: Math.max(...fragments.map(fragmentScore), 0),
         fragmentCount: fragments.length,
       };
     })
-    .toSorted((left, right) => right.score - left.score)
-    .map((page, index, all) => ({
-      ...page,
-      recommended: index < Math.ceil(all.length / RECOMMENDED_SHARE),
-    }));
+    .toSorted((left, right) => right.priority - left.priority);
 
-  const primaryRelevance = new Map<number, number[]>();
-  for (const score of run.semantic.primary) {
-    const page = primaryRelevance.get(score.ref.pageIndex) ?? [];
-    page.push(clamp(score.relevance));
-    primaryRelevance.set(score.ref.pageIndex, page);
-  }
   const primaryPages = run.sources.primary.pages
     .map((page, pageIndex) => {
-      const relevance = primaryRelevance.get(pageIndex) ?? [];
+      const fragments = primaryByPage.get(pageIndex) ?? [];
       return {
         id: page.url,
         domain: new URL(page.url).hostname,
         ours: true,
-        recommended: false,
         title: page.title,
         url: page.url,
-        score: undefined,
-        bestScore: undefined,
-        meanRelevance: relevance.length === 0 ? 0 : mean(relevance),
-        coverage: undefined,
-        fragmentCount: relevance.length,
+        priority: undefined,
+        novelty: undefined,
+        relevance: meanRelevance(fragments),
+        bestFragment: undefined,
+        fragmentCount: fragments.length,
       };
     })
-    .toSorted((left, right) => right.meanRelevance - left.meanRelevance);
+    .toSorted((left, right) => right.relevance - left.relevance);
 
-  const fragments = [...scoresByPage.values()].flat();
+  const competitorFragments = [...competitorByPage.values()].flat();
+  const primaryFragments = [...primaryByPage.values()].flat();
 
   return {
+    domains: [
+      {
+        domain: new URL(run.competitorSiteUrl).hostname,
+        ours: false,
+        pageCount: competitorPages.length,
+        fragmentCount: competitorFragments.length,
+        relevance: meanRelevance(competitorFragments),
+        novelty: novelty(competitorFragments),
+      },
+      {
+        domain: new URL(run.primarySiteUrl).hostname,
+        ours: true,
+        pageCount: primaryPages.length,
+        fragmentCount: primaryFragments.length,
+        relevance: meanRelevance(primaryFragments),
+        novelty: undefined,
+      },
+    ],
     pages: [...competitorPages, ...primaryPages],
-    summary: {
-      score: mean(competitorPages.map((page) => page.score)),
-      coverage: coverage(fragments),
-      meanRelevance: mean(fragments.map((fragment) => fragment.relevance)),
-      meanPrimaryRelevance: mean(
-        run.semantic.primary.map((score) => clamp(score.relevance)),
-      ),
-    },
   };
 }
 
+function groupByPage<T extends { ref: { pageIndex: number } }, R>(
+  scores: T[],
+  map: (score: T) => R,
+): Map<number, R[]> {
+  const grouped = new Map<number, R[]>();
+  for (const score of scores) {
+    const page = grouped.get(score.ref.pageIndex) ?? [];
+    page.push(map(score));
+    grouped.set(score.ref.pageIndex, page);
+  }
+  return grouped;
+}
+
 function toFragmentScore(
-  score: SemanticReport["competitor"][number],
+  score:
+    SemanticReport["competitor"][number] | SemanticReport["primary"][number],
 ): FragmentScore {
-  const relevance = clamp(score.relevance);
-  const similarity = clamp(score.maxPrimarySimilarity);
-  return { relevance, similarity, score: relevance * (1 - similarity) };
+  return {
+    relevance: clamp(score.relevance),
+    similarity:
+      "maxPrimarySimilarity" in score ? clamp(score.maxPrimarySimilarity) : 0,
+  };
 }
 
-function topScore(fragments: FragmentScore[]): number {
-  return mean(
-    fragments
-      .map((fragment) => fragment.score)
-      .toSorted((left, right) => right - left)
-      .slice(0, TOP_FRAGMENTS),
-  );
+function fragmentScore(fragment: FragmentScore): number {
+  return fragment.relevance * (1 - fragment.similarity);
 }
 
-function coverage(fragments: FragmentScore[]): number {
-  const relevance = total(fragments.map((fragment) => fragment.relevance));
-  if (relevance === 0) return 0;
+function meanRelevance(fragments: FragmentScore[]): number {
+  if (fragments.length === 0) return 0;
   return (
-    total(
-      fragments.map((fragment) => fragment.relevance * fragment.similarity),
-    ) / relevance
+    total(fragments.map((fragment) => fragment.relevance)) / fragments.length
   );
+}
+
+function novelty(fragments: FragmentScore[]): number {
+  const weight = total(fragments.map((fragment) => fragment.relevance));
+  if (weight === 0) return 0;
+  return total(fragments.map(fragmentScore)) / weight;
 }
 
 function clamp(value: number): number {
@@ -137,8 +150,4 @@ function clamp(value: number): number {
 
 function total(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0);
-}
-
-function mean(values: number[]): number {
-  return total(values) / values.length;
 }

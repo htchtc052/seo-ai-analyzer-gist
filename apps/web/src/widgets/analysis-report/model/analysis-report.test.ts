@@ -35,9 +35,9 @@ function run(competitorParagraphs: string[][]): CompletedAnalysis {
         },
       ],
       competitor: competitorParagraphs.flatMap((paragraphs, pageIndex) =>
-        paragraphs.map((_, paragraphIndex) => ({
+        paragraphs.map((paragraph, paragraphIndex) => ({
           ref: { pageIndex, sectionIndex: 0, paragraphIndex },
-          relevance: paragraphIndex === 0 ? 0.9 : 0.1,
+          relevance: paragraph === "one strong" ? 0.9 : 0.1,
           maxPrimarySimilarity: 0,
           closestPrimaryRef: {
             pageIndex: 0,
@@ -50,18 +50,18 @@ function run(competitorParagraphs: string[][]): CompletedAnalysis {
   } as CompletedAnalysis;
 }
 
-function scoreOf(report: ReturnType<typeof buildAnalysisReport>): number {
-  const score = report.pages[0]!.score;
-  assert(score !== undefined);
-  return score;
+function priorityOf(report: ReturnType<typeof buildAnalysisReport>): number {
+  const priority = report.pages[0]!.priority;
+  assert(priority !== undefined);
+  return priority;
 }
 
-test("weak fragments never raise a page score", () => {
-  const short = buildAnalysisReport(run([["one strong", "weak"]]));
-  const long = buildAnalysisReport(
-    run([["one strong", ...Array.from({ length: 40 }, () => "weak")]]),
+test("page priority does not change when a page is simply longer", () => {
+  const once = buildAnalysisReport(run([["one strong", "weak"]]));
+  const twice = buildAnalysisReport(
+    run([["one strong", "weak", "one strong", "weak"]]),
   );
-  assert(scoreOf(long) <= scoreOf(short));
+  assert.equal(priorityOf(twice), priorityOf(once));
 });
 
 test("a short page about the query outranks a long page around it", () => {
