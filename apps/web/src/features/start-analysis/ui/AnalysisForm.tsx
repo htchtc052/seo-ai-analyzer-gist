@@ -39,7 +39,7 @@ export function AnalysisForm({
       searchQuery: "",
       primarySiteUrl: "",
       competitorSiteUrl: "",
-      crawlPagesPerSite: 30,
+      crawlPagesPerSite: 20,
     },
   });
 
