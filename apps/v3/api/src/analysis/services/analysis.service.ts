@@ -33,7 +33,7 @@ export class AnalysisService {
 
   async find(id: string): Promise<AnalysisRun> {
     const run = await this.analyses.findById(id);
-    if (!run) throw new NotFoundException("Анализ не найден");
+    if (!run) throw new NotFoundException("Analysis not found");
     return run;
   }
 
@@ -43,6 +43,6 @@ export class AnalysisService {
 
   async delete(id: string): Promise<void> {
     if (!(await this.analyses.delete(id)))
-      throw new NotFoundException("Анализ не найден");
+      throw new NotFoundException("Analysis not found");
   }
 }

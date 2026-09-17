@@ -16,11 +16,9 @@ export type AnalysisFailure = {
   detail: string | null;
 };
 
-// Строка отчёта. Новизна и приоритет у нашей страницы отсутствуют:
-// сравнивать её с самой собой нечем.
 export type ReportPage = {
   url: string;
-  title: string | null;
+  title: string;
   ours: boolean;
   fragmentCount: number;
   relevance: number;

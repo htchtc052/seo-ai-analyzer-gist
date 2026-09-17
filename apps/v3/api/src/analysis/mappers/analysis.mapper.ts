@@ -38,8 +38,7 @@ export function toAnalysisSummary(run: SummaryRecord): AnalysisSummary {
     id: run.id,
     searchQuery: run.searchQuery,
     status: run.status.toLowerCase() as AnalysisSummary["status"],
-    // Наша страница тоже лежит в pages, поэтому конкурентов на одну меньше.
-    competitorCount: Math.max(run._count.pages - 1, 0),
+    competitorCount: run._count.pages - 1,
     createdAt: run.createdAt.toISOString(),
   };
 }
@@ -80,7 +79,6 @@ export function toAnalysisRun(run: RunRecord): AnalysisRun {
   };
 }
 
-// Новизна и приоритет производные, поэтому считаются здесь, а не хранятся.
 function toReportPages(pages: RunPage[]): ReportPage[] {
   const rows = pages.map((page) => {
     const scores = page.fragments.map((fragment) => ({
@@ -93,11 +91,11 @@ function toReportPages(pages: RunPage[]): ReportPage[] {
       ours || weight === 0
         ? null
         : total(scores.map((s) => s.relevance * (1 - s.similarity))) / weight;
-    const relevance = scores.length === 0 ? 0 : weight / scores.length;
+    const relevance = weight / scores.length;
 
     return {
       url: page.url,
-      title: page.title,
+      title: page.title!,
       ours,
       fragmentCount: scores.length,
       relevance,
@@ -106,7 +104,6 @@ function toReportPages(pages: RunPage[]): ReportPage[] {
     };
   });
 
-  // Наша страница закреплена сверху как точка отсчёта, остальные по приоритету.
   return [
     ...rows.filter((row) => row.ours),
     ...rows

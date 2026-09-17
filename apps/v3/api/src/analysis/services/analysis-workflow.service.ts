@@ -20,25 +20,22 @@ export class AnalysisWorkflowService {
     private readonly semantics: SemanticComparisonService,
   ) {}
 
-  // Возвращает true, когда эта страница была последней и пора считать отчёт.
   async embedPage(analysisId: string, pageId: string): Promise<boolean> {
     await this.analyses.markRunning(analysisId);
     const page = await this.analyses.findPage(pageId);
-    // Страницы нет — значит анализ удалили, пока работа ждала очереди.
-    if (!page) return false;
-    if (page.analysisId !== analysisId)
-      throw new Error("Analysis page belongs to another analysis");
+    if (!page || page.analysisId !== analysisId)
+      throw new Error("Analysis page not found");
     if (page.embeddedAt)
       return (await this.analyses.countPendingPages(analysisId)) === 0;
 
     const { html } = await this.client.load(page.url);
     const { article } = this.extractor.extract(html);
     if (!article)
-      throw new EmptyPageError("Не нашли читаемый текст статьи", page.url);
+      throw new EmptyPageError("Found no readable article text", page.url);
 
     const fragments = toFragments(article.sections);
     if (fragments.length === 0)
-      throw new EmptyPageError("В статье нет пригодных абзацев", page.url);
+      throw new EmptyPageError("Article has no usable paragraphs", page.url);
 
     const embedded = await this.semantics.embedPage(
       page.analysis.searchQuery,

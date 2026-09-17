@@ -11,8 +11,6 @@ import {
 } from "../services/analysis-queue.service.js";
 import { AnalysisWorkflowService } from "../services/analysis-workflow.service.js";
 
-// Страниц немного, но каждая ждёт сеть и провайдера, поэтому берём их
-// параллельно. Вся математика идёт потом одной работой.
 const PAGE_CONCURRENCY = 4;
 
 @Processor(ANALYSIS_QUEUE, { concurrency: PAGE_CONCURRENCY })

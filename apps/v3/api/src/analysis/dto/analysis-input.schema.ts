@@ -2,21 +2,19 @@ import { z } from "zod";
 
 const pageUrlSchema = z.url({
   protocol: /^https?$/,
-  error: "Нужен адрес страницы по http или https",
+  error: "Enter an http or https page URL",
 });
 
-// Вход задан заказчиком: запрос, наша страница и от одного до пяти
-// конкурентов. Никакого домена и никакого обхода — только эти адреса.
 export const analysisInputSchema = z.object({
-  searchQuery: z.string().trim().min(1, "Запрос обязателен").max(500),
+  searchQuery: z.string().trim().min(1, "searchQuery is required").max(500),
   primaryUrl: pageUrlSchema,
   competitorUrls: z
     .array(pageUrlSchema)
-    .min(1, "Нужен хотя бы один конкурент")
-    .max(5, "Больше пяти конкурентов не берём")
+    .min(1, "At least one competitor URL is required")
+    .max(5, "At most five competitor URLs are allowed")
     .refine(
       (urls) => new Set(urls).size === urls.length,
-      "Адреса конкурентов повторяются",
+      "competitorUrls must be unique",
     ),
 });
 

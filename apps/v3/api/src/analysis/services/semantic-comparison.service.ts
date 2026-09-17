@@ -13,8 +13,6 @@ export class SemanticComparisonService {
     return this.embeddings.model;
   }
 
-  // Запрос уходит в ту же партию, что и фрагменты: так релевантность
-  // считается в одном пространстве и без второго похода к провайдеру.
   async embedPage(
     searchQuery: string,
     fragments: FragmentInput[],
@@ -35,7 +33,6 @@ export class SemanticComparisonService {
     });
   }
 
-  // Похожесть фрагмента конкурента — наибольший косинус до наших фрагментов.
   similarities(
     ours: Array<{ embedding: number[] }>,
     theirs: Array<{ id: string; embedding: number[] }>,

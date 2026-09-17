@@ -30,7 +30,6 @@ export class AnalysisQueueService {
     await this.queue.add(
       FINALIZE_JOB,
       { analysisId },
-      // Двоеточие в идентификаторе работы BullMQ не принимает.
       { jobId: `${FINALIZE_JOB}-${analysisId}` },
     );
   }

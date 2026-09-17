@@ -5,8 +5,6 @@ const pageUrlSchema = z.url({
   error: "Нужен адрес страницы по http или https",
 });
 
-// Зеркало схемы бэкенда: запрос, наша страница и от одного до пяти
-// конкурентов. Никаких доменов и обхода.
 export const analysisInputSchema = z.object({
   searchQuery: z.string().trim().min(1, "Запрос обязателен").max(500),
   primaryUrl: pageUrlSchema,
@@ -40,11 +38,9 @@ export type AnalysisFailure = {
   detail: string | null;
 };
 
-// Новизна и приоритет у нашей страницы отсутствуют: сравнивать её
-// с самой собой нечем.
 export type ReportPage = {
   url: string;
-  title: string | null;
+  title: string;
   ours: boolean;
   fragmentCount: number;
   relevance: number;

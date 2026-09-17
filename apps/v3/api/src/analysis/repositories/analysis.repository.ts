@@ -21,8 +21,6 @@ export class AnalysisRepository {
     private readonly prisma: PrismaService,
   ) {}
 
-  // Страницы заводятся сразу: адреса известны из формы, а очереди нужно
-  // на что ссылаться.
   async create(
     input: AnalysisInputDto,
   ): Promise<{ id: string; pageIds: string[] }> {
@@ -67,9 +65,6 @@ export class AnalysisRepository {
     return count > 0;
   }
 
-  // Переход делает первая же работа очереди, а не приём запроса: пока никто
-  // не начал, анализ честно стоит в очереди. Условие на статус делает
-  // обновление однократным без лишнего чтения.
   async markRunning(id: string): Promise<void> {
     await this.prisma.analysis.updateMany({
       where: { id, status: AnalysisStatus.QUEUED },
@@ -172,9 +167,7 @@ export class AnalysisRepository {
       detail: string | null;
     },
   ): Promise<void> {
-    // updateMany, а не update: анализ могли удалить, пока работа была в
-    // очереди, и падать на этом воркеру незачем.
-    await this.prisma.analysis.updateMany({
+    await this.prisma.analysis.update({
       where: { id },
       data: {
         status: AnalysisStatus.FAILED,

@@ -2,14 +2,12 @@
 set -eu
 cd "$(dirname "$0")"
 
-# Переменные из .env.example на сервер сами не переезжают, а пустая
-# переменная тихо превращается в пустую строку и роняет уже сам psql.
 missing=""
 for name in $(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example); do
   grep -q "^${name}=" .env || missing="${missing} ${name}"
 done
 if [ -n "$missing" ]; then
-  echo "В .env не хватает переменных:${missing}" >&2
+  echo ".env is missing variables:${missing}" >&2
   exit 1
 fi
 
@@ -26,7 +24,7 @@ for path in /v1/api/health /v2/api/health /v3/api/health; do
   until curl --fail --silent --show-error --connect-timeout 5 --max-time 15 "https://${app_domain}${path}"; do
     attempts=$((attempts + 1))
     if [ "$attempts" -ge 12 ]; then
-      echo "Не отвечает: ${path}" >&2
+      echo "No answer from ${path}" >&2
       exit 1
     fi
     sleep 5

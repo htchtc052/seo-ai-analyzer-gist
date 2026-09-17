@@ -87,7 +87,7 @@ function Row({ page }: { page: ReportPage }) {
             {page.ours ? "наша страница" : "конкурент"}
           </span>
           <span className="flex items-start gap-2 leading-5 font-medium group-hover:text-primary">
-            {page.title ?? page.url}
+            {page.title}
             <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
           </span>
           <span className="truncate text-xs text-muted-foreground">
