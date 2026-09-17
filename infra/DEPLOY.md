@@ -3,11 +3,11 @@
 Прод — VPS с Ubuntu, поддомен `seo-analyzer.proclouds.ru`. На нём стоят рядом
 несколько версий инструмента, каждая в своей папке:
 
-| Путь  | Что это            | Репозиторий          |
-| ----- | ------------------ | -------------------- |
-| `/`   | страница со ссылками | `infra/landing`      |
-| `/v1` | первая попытка     | `seo-ai-analyzer`    |
-| `/v2` | текущая версия     | `seo-ai-analyzer-gist` |
+| Путь  | Что это                | Исходники       |
+| ----- | ---------------------- | --------------- |
+| `/`   | ссылки и `robots.txt`  | `infra/landing` |
+| `/v1` | первая попытка         | `apps/v1`       |
+| `/v2` | версия с обходом сайта | `apps/v2`       |
 
 Образы собираются на самом сервере из исходников: реестр и CI для такой задачи
 лишние. Весь поддомен закрыт от индексации — `noindex` стоит и мета-тегом, и
@@ -69,8 +69,6 @@ Encrypt не выпустит сертификат.
 curl -fsSL https://get.docker.com | sh
 
 git clone https://github.com/htchtc052/seo-ai-analyzer-gist.git /srv/seo-ai-analyzer-gist
-git clone -b deploy/subfolder https://github.com/htchtc052/seo-ai-analyzer.git /srv/seo-ai-analyzer
-
 cd /srv/seo-ai-analyzer-gist
 cp infra/.env.example infra/.env && chmod 600 infra/.env
 ```
@@ -85,9 +83,7 @@ embeddings. Затем поднять Postgres по разделу выше и �
 ## Обновление
 
 ```bash
-ssh root@seo-analyzer.proclouds.ru '
-  cd /srv/seo-ai-analyzer     && git pull --ff-only &&
-  cd /srv/seo-ai-analyzer-gist && git pull --ff-only && infra/deploy.sh'
+ssh root@seo-analyzer.proclouds.ru 'cd /srv/seo-ai-analyzer-gist && git pull --ff-only && infra/deploy.sh'
 ```
 
 Новые переменные из `.env.example` на сервер сами не попадают.

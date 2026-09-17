@@ -1,47 +1,59 @@
-# SEO AI Analyzer GIST
+# SEO AI Analyzer
 
-Proof of concept for comparing the semantic coverage of two explicitly selected
-domains against one search query.
+Несколько версий одного инструмента живут рядом, чтобы их можно было сравнить
+на одних и тех же данных:
 
-## Development
+| Версия | Что это                                         |
+| ------ | ----------------------------------------------- |
+| `v1`   | первая попытка: работа с конкретными статьями   |
+| `v2`   | обход сайта и сравнение двух доменов по запросу |
 
-Requires Node.js 24 or newer, Docker, and any OpenAI-compatible embeddings
-endpoint. Nothing in the code is tied to a particular provider: production runs
-against a hosted gateway, while `apps/api/.env.example` points at a local Ollama
-because that needs no key.
+Версии намеренно не делят код. Дублирование между ними — условие эксперимента:
+правка ради одной не должна незаметно менять другую.
+
+## Разработка
+
+Нужны Node.js 24 или новее, PostgreSQL и Redis на хосте, и любой
+OpenAI-совместимый endpoint для embeddings. К провайдеру ничего не привязано:
+в проде это внешний шлюз, а `.env.example` каждой версии смотрит на локальную
+Ollama, потому что ей не нужен ключ.
 
 ```bash
 npm install
-cp apps/api/.env.example apps/api/.env
-docker compose -f docker-compose.dev.yml up -d
-npm run db:migrate -w @seo-ai-analyzer-gist/api
-npm run dev
+createdb seo_v1 && createdb seo_v2
+cp apps/v1/api/.env.example apps/v1/api/.env
+cp apps/v2/api/.env.example apps/v2/api/.env
+npm run db:migrate -w @seo/v1-api
+npm run db:migrate -w @seo/v2-api
+npm run dev:v1   # или dev:v2, можно обе сразу
 ```
 
-PostgreSQL stores analyses, pages, fragments, embeddings, and scores. Redis is
-used only by BullMQ. The local development connection strings are documented in
-`apps/api/.env.example`.
+Версии разведены по портам и хранилищам, поэтому запускаются одновременно:
 
-`LLM_BASE_URL`, `LLM_API_KEY` and `LLM_EMBEDDING_MODEL` select the embeddings
-provider. The query and the fragments are sent as plain text, with no
-model-specific task prefixes, so any embedding model works.
+| Версия | API    | Web    | База PostgreSQL | База Redis |
+| ------ | ------ | ------ | --------------- | ---------- |
+| `v1`   | `3001` | `5173` | `seo_v1`        | `2`        |
+| `v2`   | `3002` | `5174` | `seo_v2`        | `3`        |
 
-Batches from the provider are not trusted: see `EmbeddingsService`, which places
-vectors by their index and rejects a batch whose indices repeat or whose entries
-share one vector between different inputs.
+PostgreSQL хранит анализы, страницы, фрагменты, векторы и оценки. Redis нужен
+только BullMQ. У каждой версии свой сгенерированный Prisma-клиент внутри её
+`node_modules` — общий на монорепу клиент версии перетирали бы друг у друга.
 
-The web app runs at `http://localhost:5173` and proxies `/api` requests to the NestJS API at `http://localhost:3001`.
+`LLM_BASE_URL`, `LLM_API_KEY` и `LLM_EMBEDDING_MODEL` выбирают провайдера
+embeddings. Запрос и фрагменты уходят простым текстом, без префиксов задач под
+конкретное семейство моделей, поэтому подходит любая модель.
 
-## Project structure
+Ответы провайдера не считаются доверенными: `EmbeddingsService` раскладывает
+векторы по индексам и отвергает партию, где индексы повторяются или где разные
+тексты получили один и тот же вектор.
+
+## Структура
 
 ```text
-apps/api  NestJS API
-apps/web  React application
-apps/api/prisma  PostgreSQL schema and migrations
-docs      Product decisions and references
-infra     Production compose file and deploy script
+apps/v1/{api,web,examples}  первая версия
+apps/v2/{api,web}           версия с обходом
+infra                       прод-компоуз, лендинг и скрипт деплоя
+docs                        справочные материалы
 ```
 
-Deployment is described in [`infra/DEPLOY.md`](infra/DEPLOY.md).
-
-The previous local implementation at `../react-linkedin` is a development donor only. This repository has no runtime or build dependency on it.
+Деплой описан в [`infra/DEPLOY.md`](infra/DEPLOY.md).

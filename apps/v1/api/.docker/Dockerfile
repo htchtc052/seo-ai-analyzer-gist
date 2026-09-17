@@ -1,0 +1,28 @@
+FROM node:24-alpine AS base
+RUN apk add --no-cache openssl
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.json ./
+COPY apps/v1/api/package.json apps/v1/api/
+COPY apps/v1/web/package.json apps/v1/web/
+COPY apps/v1/examples/package.json apps/v1/examples/
+COPY apps/v2/api/package.json apps/v2/api/
+COPY apps/v2/web/package.json apps/v2/web/
+
+FROM base AS build
+RUN npm ci --no-audit --no-fund
+COPY apps/v1/examples apps/v1/examples
+COPY apps/v1/api apps/v1/api
+RUN npm run build -w @seo/v1-api
+
+FROM base
+ENV NODE_ENV=production
+COPY apps/v1/examples apps/v1/examples
+COPY apps/v1/api/prisma apps/v1/api/prisma
+RUN npm ci --omit=dev --omit=optional -w @seo/v1-api --no-audit --no-fund \
+  && npm exec -w @seo/v1-api -- prisma generate \
+  && rm -rf /root/.npm /root/.cache
+COPY --from=build /app/apps/v1/api/dist apps/v1/api/dist
+WORKDIR /app/apps/v1/api
+USER node
+EXPOSE 3001
+CMD ["node", "dist/main.js"]

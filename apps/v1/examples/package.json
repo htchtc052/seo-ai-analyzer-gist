@@ -1,0 +1,9 @@
+{
+  "name": "@seo/v1-examples",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./topics.json": "./topics.json"
+  }
+}

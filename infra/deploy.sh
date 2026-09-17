@@ -2,12 +2,6 @@
 set -eu
 cd "$(dirname "$0")"
 
-v1_repo="$(sed -n 's/^V1_REPO_PATH=//p' .env | head -n 1)"
-if [ ! -d "$v1_repo" ]; then
-  echo "Нет репозитория первой версии: $v1_repo" >&2
-  exit 1
-fi
-
 docker compose build v1-api v1-web v2-api v2-web
 docker compose up -d --wait redis
 docker compose run --rm v1-api npx --no-install prisma migrate deploy

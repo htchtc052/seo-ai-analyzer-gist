@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/*"
+    "apps/*/*"
   ],
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "concurrently -k -n api,web \"npm run dev -w @seo-ai-analyzer-gist/api\" \"npm run dev -w @seo-ai-analyzer-gist/web\"",
+    "dev:v1": "concurrently -k -n v1-api,v1-web \"npm run dev -w @seo/v1-api\" \"npm run dev -w @seo/v1-web\"",
+    "dev:v2": "concurrently -k -n v2-api,v2-web \"npm run dev -w @seo/v2-api\" \"npm run dev -w @seo/v2-web\"",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

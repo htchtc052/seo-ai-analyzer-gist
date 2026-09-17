@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+  // Свой клиент на версию: общий node_modules один на монорепу,
+  // и без этого версии перетирают сгенерированные типы друг друга.
+  output   = "../node_modules/@prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Article {
+  id             String        @id @default(uuid())
+  sourceUrl      String
+  title          String
+  sections       Json
+  importedAt     DateTime      @default(now())
+  primaryRuns    AnalysisRun[] @relation("PrimaryArticle")
+  competitorRuns AnalysisRun[] @relation("RunCompetitors")
+}
+
+model AnalysisRun {
+  id              String    @id @default(uuid())
+  articleId       String
+  article         Article   @relation("PrimaryArticle", fields: [articleId], references: [id])
+  competitors     Article[] @relation("RunCompetitors")
+  query           String
+  audience        String
+  purpose         String
+  niche           String
+  scores          Float[]
+  missingEntities String[]
+  recommendations String[]
+  createdAt       DateTime  @default(now())
+}

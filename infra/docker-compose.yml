@@ -1,11 +1,31 @@
 name: seo-ai-analyzer
 
-# Три варианта инструмента живут на одном поддомене, каждый в своей папке:
-#   /v1  — первая попытка  (репозиторий seo-ai-analyzer)
-#   /v2  — текущий          (этот репозиторий)
-#   /    — страница со ссылками
+# Версии инструмента живут на одном поддомене, каждая в своей папке:
+#   /v1  — первая попытка
+#   /v2  — версия с обходом сайта
+#   /    — страница со ссылками и robots.txt
 # Traefik срезает префикс, поэтому внутри контейнеров пути обычные.
-# Postgres вынесен на хост: базы заводятся руками, см. DEPLOY.md.
+# Postgres вынесен на хост, базы заводятся руками — см. DEPLOY.md.
+
+x-api: &api
+  restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    redis:
+      condition: service_healthy
+
+x-api-env: &api-env
+  NODE_ENV: production
+  API_HOST: 0.0.0.0
+  API_PORT: 3001
+  WEB_ORIGIN: https://${APP_DOMAIN}
+  LLM_BASE_URL: ${LLM_BASE_URL}
+  LLM_API_KEY: ${LLM_API_KEY}
+  LLM_EMBEDDING_MODEL: ${LLM_EMBEDDING_MODEL}
+
+x-web: &web
+  restart: unless-stopped
 
 services:
   traefik:
@@ -45,6 +65,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./landing/index.html:/usr/share/nginx/html/index.html:ro
+      - ./landing/robots.txt:/usr/share/nginx/html/robots.txt:ro
       - ./landing/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - traefik.enable=true
@@ -55,26 +76,15 @@ services:
       - traefik.http.services.landing.loadbalancer.server.port=80
 
   v1-api:
+    <<: *api
     build:
-      context: ${V1_REPO_PATH}
-      dockerfile: apps/api/.docker/Dockerfile
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      context: ..
+      dockerfile: apps/v1/api/.docker/Dockerfile
     environment:
-      NODE_ENV: production
-      API_HOST: 0.0.0.0
-      API_PORT: 3001
-      WEB_ORIGIN: https://${APP_DOMAIN}
+      <<: *api-env
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB_V1}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      LLM_BASE_URL: ${LLM_BASE_URL}
-      LLM_API_KEY: ${LLM_API_KEY}
-      LLM_EMBEDDING_MODEL: ${LLM_EMBEDDING_MODEL}
       LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-}
-    depends_on:
-      redis:
-        condition: service_healthy
     labels:
       - traefik.enable=true
       - traefik.http.routers.v1-api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v1/api`)
@@ -86,12 +96,12 @@ services:
       - traefik.http.services.v1-api.loadbalancer.server.port=3001
 
   v1-web:
+    <<: *web
     build:
-      context: ${V1_REPO_PATH}
-      dockerfile: apps/web/.docker/Dockerfile
+      context: ..
+      dockerfile: apps/v1/web/.docker/Dockerfile
       args:
         APP_BASE_PATH: /v1/
-    restart: unless-stopped
     labels:
       - traefik.enable=true
       - traefik.http.routers.v1-web.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v1`)
@@ -103,25 +113,14 @@ services:
       - traefik.http.services.v1-web.loadbalancer.server.port=80
 
   v2-api:
+    <<: *api
     build:
       context: ..
-      dockerfile: apps/api/.docker/Dockerfile
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      dockerfile: apps/v2/api/.docker/Dockerfile
     environment:
-      NODE_ENV: production
-      API_HOST: 0.0.0.0
-      API_PORT: 3001
-      WEB_ORIGIN: https://${APP_DOMAIN}
+      <<: *api-env
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB_V2}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
-      LLM_BASE_URL: ${LLM_BASE_URL}
-      LLM_API_KEY: ${LLM_API_KEY}
-      LLM_EMBEDDING_MODEL: ${LLM_EMBEDDING_MODEL}
-    depends_on:
-      redis:
-        condition: service_healthy
     labels:
       - traefik.enable=true
       - traefik.http.routers.v2-api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v2/api`)
@@ -133,12 +132,12 @@ services:
       - traefik.http.services.v2-api.loadbalancer.server.port=3001
 
   v2-web:
+    <<: *web
     build:
       context: ..
-      dockerfile: apps/web/.docker/Dockerfile
+      dockerfile: apps/v2/web/.docker/Dockerfile
       args:
         APP_BASE_PATH: /v2/
-    restart: unless-stopped
     labels:
       - traefik.enable=true
       - traefik.http.routers.v2-web.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v2`)

@@ -1,0 +1,110 @@
+[
+  {
+    "title": "iPhone 18 Pro camera",
+    "query": "iPhone 18 Pro variable aperture camera",
+    "article": {
+      "site": "TidBITS",
+      "url": "https://tidbits.com/2026/09/10/iphone-18-pro-gets-a20-pro-and-variable-aperture-camera/"
+    },
+    "competitors": [
+      {
+        "site": "Apple Newsroom",
+        "url": "https://www.apple.com/newsroom/2026/09/apple-debuts-iphone-18-pro-and-iphone-18-pro-max/"
+      },
+      {
+        "site": "Memeburn",
+        "url": "https://memeburn.com/iphone-18-pro-max-variable-aperture-a20-pro-chip-specs/"
+      }
+    ]
+  },
+  {
+    "title": "Лето в Москве",
+    "query": "куда сходить летом в Москве 2026",
+    "article": {
+      "site": "Афиша Daily",
+      "url": "https://daily.afisha.ru/cities/32287-budet-zharko-kuda-hodit-chto-delat-i-gde-est-v-moskve-letom-2026/"
+    },
+    "competitors": [
+      {
+        "site": "Досугатор",
+        "url": "https://dosugator.ru/articles/leto-v-moskve-2026/"
+      },
+      {
+        "site": "Афиша Daily · Лето в Москве",
+        "url": "https://daily.afisha.ru/cities/32270-30-maya-startuet-proekt-leto-v-moskve/"
+      }
+    ]
+  },
+  {
+    "title": "Junior developer jobs",
+    "query": "junior developer job market 2026",
+    "article": {
+      "site": "Danilchenko",
+      "url": "https://www.danilchenko.dev/posts/junior-developer-jobs-2026/"
+    },
+    "competitors": [
+      {
+        "site": "JobsByCulture",
+        "url": "https://jobsbyculture.com/blog/junior-developer-crisis-2026"
+      },
+      {
+        "site": "SlateGit",
+        "url": "https://slategit.com/blog/junior-developer-job-market-2026"
+      }
+    ]
+  },
+  {
+    "title": "Huawei 1-inch sensor",
+    "query": "Huawei Pura 80 Ultra 1-inch sensor camera",
+    "article": {
+      "site": "Quest Review Center",
+      "url": "https://questreviewcenter.com/product-comparisons/huaweis-pura-80-ultra-leads-as-camera-phone-battles-shift-towards-processing-and-versatility-in-2026/"
+    },
+    "competitors": [
+      {
+        "site": "GizGuide",
+        "url": "https://www.gizguide.com/2025/08/huawei-pura-80-pro-80-ultra-review.html"
+      },
+      {
+        "site": "DXOMARK",
+        "url": "https://www.dxomark.com/huawei-pura-80-ultra-camera-test/"
+      }
+    ]
+  },
+  {
+    "title": "US Congress elections",
+    "query": "2026 US midterm elections House and Senate forecast",
+    "article": {
+      "site": "Election Central",
+      "url": "https://www.uspresidentialelectionnews.com/2026-midterm-elections/"
+    },
+    "competitors": [
+      {
+        "site": "Race to the WH · House",
+        "url": "https://www.racetothewh.com/house"
+      },
+      {
+        "site": "Race to the WH · Senate",
+        "url": "https://racetothewh.com/senate/26"
+      }
+    ]
+  },
+  {
+    "title": "Ollama",
+    "query": "run LLMs locally with Ollama",
+    "article": {
+      "site": "DEV Community",
+      "url": "https://dev.to/lingdas1/the-complete-guide-to-running-llms-locally-in-2026-from-ollama-to-production-3d8b"
+    },
+    "competitors": [
+      {
+        "site": "daily.dev",
+        "url": "https://daily.dev/blog/running-llms-locally-ollama-llama-cpp-self-hosted-ai-developers/"
+      },
+      {
+        "site": "AI Dev Toolkit",
+        "url": "https://aidevtoolkit.dev/articles/ollama-local-llm-guide"
+      }
+    ]
+  }
+]
