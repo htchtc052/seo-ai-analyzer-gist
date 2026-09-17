@@ -1,4 +1,4 @@
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import type { CompletedAnalysis, ReportPage } from "@/entities/analysis";
 import { Button } from "@/shared/ui/button";
@@ -11,13 +11,13 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { cn } from "cn";
 import { ColumnHelp } from "./ColumnHelp";
+import { FragmentDialog, type DialogSubject } from "./FragmentDialog";
 import { SelectedFragments } from "./SelectedFragments";
 import { formatPercent, formatScore } from "./report-format";
 
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
-  const [opened, setOpened] = useState<string | null>(null);
+  const [subject, setSubject] = useState<DialogSubject | null>(null);
   const poolSize = run.pages.reduce(
     (total, page) =>
       page.status === "scored" && !page.ours
@@ -29,7 +29,7 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
   return (
     <TooltipProvider>
       <div className="grid gap-8">
-        <SelectedFragments run={run} poolSize={poolSize} />
+        <SelectedFragments run={run} poolSize={poolSize} onOpen={setSubject} />
 
         <section className="grid gap-3">
           <div className="flex items-baseline justify-between gap-4">
@@ -60,24 +60,25 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                       note="Какая доля релевантного содержания страницы не похожа на нашу. Новизна абзаца — это 1 минус наибольший cos до абзацев нашей страницы, поэтому величина относительна и зависит от того, что написано именно у нас. Короткий абзац почти всегда выглядит новее длинного: совпасть ему не с чем."
                     />
                   </TableHead>
-                  <TableHead className="text-right">Вклад</TableHead>
+                  <TableHead className="text-right">
+                    <ColumnHelp
+                      label="Вклад"
+                      formula="сколько абзацев этой страницы попало в отбор"
+                      note="Отбор идёт сразу по абзацам всех конкурентов и отбрасывает те, что повторяют уже взятое. Поэтому прочерк не значит, что страница плохая: её сильные абзацы говорят о том же, что нашлось у другой."
+                    />
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {run.pages.map((page) => (
-                  <Row
-                    key={page.url}
-                    page={page}
-                    opened={opened === page.url}
-                    onToggle={() =>
-                      setOpened(opened === page.url ? null : page.url)
-                    }
-                  />
+                  <Row key={page.url} page={page} onOpen={setSubject} />
                 ))}
               </TableBody>
             </Table>
           </div>
         </section>
+
+        <FragmentDialog subject={subject} onClose={() => setSubject(null)} />
       </div>
     </TooltipProvider>
   );
@@ -85,98 +86,49 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
 
 function Row({
   page,
-  opened,
-  onToggle,
+  onOpen,
 }: {
   page: ReportPage;
-  opened: boolean;
-  onToggle: () => void;
+  onOpen: (subject: DialogSubject) => void;
 }) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
   return (
-    <>
-      <TableRow className={page.ours ? "bg-muted/40" : undefined}>
-        <TableCell>
-          <PageLink page={page} />
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {formatScore(page.relevance)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
-        </TableCell>
-        <TableCell className="text-right">
-          {page.ours ? (
-            <Dash />
-          ) : (
-            <Button
-              variant="outline"
-              onClick={onToggle}
-              aria-expanded={opened}
-              className="tabular-nums"
-            >
-              {toLabel(page)}
-              <ChevronDown
-                className={cn("transition-transform", opened && "rotate-180")}
-              />
-            </Button>
-          )}
-        </TableCell>
-      </TableRow>
-
-      {opened && (
-        <TableRow className="bg-muted/20 hover:bg-muted/20">
-          <TableCell colSpan={4}>
-            <Contribution page={page} />
-          </TableCell>
-        </TableRow>
-      )}
-    </>
-  );
-}
-
-function Contribution({
-  page,
-}: {
-  page: Extract<ReportPage, { status: "scored" }>;
-}) {
-  const ranks = page.recommendations.map((item) => item.rank);
-
-  return (
-    <div className="grid max-w-3xl gap-2 py-1 text-sm">
-      <p>
-        Приоритет страницы{" "}
-        <span className="font-medium tabular-nums">
-          {formatScore(page.priority ?? 0)}
-        </span>{" "}
-        — среднее приоритетов её {page.fragmentCount} абзацев. Приоритет абзаца
-        это его релевантность, умноженная на новизну; это же число уходит в GIST
-        как ценность.
-      </p>
-      {ranks.length > 0 ? (
-        <p>
-          Наверх попали абзацы{" "}
-          <span className="font-medium">
-            {ranks.map((rank) => `№${rank}`).join(", ")}
-          </span>
-          .
-        </p>
-      ) : (
-        <p className="text-muted-foreground">
-          Наверх не попало ничего. Отбор идёт по абзацам всех конкурентов сразу
-          и отбрасывает те, что повторяют уже взятое, — значит сильные абзацы
-          этой страницы говорят о том же, что нашлось у другой. Приоритет тут ни
-          при чём: он про страницу целиком.
-        </p>
-      )}
-    </div>
+    <TableRow className={page.ours ? "bg-muted/40" : undefined}>
+      <TableCell>
+        <PageLink page={page} />
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatScore(page.relevance)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
+      </TableCell>
+      <TableCell className="text-right">
+        {page.recommendations.length === 0 ? (
+          <Dash />
+        ) : (
+          <Button
+            variant="outline"
+            className="tabular-nums"
+            onClick={() =>
+              onOpen({
+                title: page.title,
+                url: page.url,
+                fragments: page.recommendations,
+              })
+            }
+          >
+            {toLabel(page)}
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
 
 function toLabel(page: Extract<ReportPage, { status: "scored" }>): string {
   const count = page.recommendations.length;
-  if (count === 0) return "нет абзацев";
   const last = count % 10;
   const tens = count % 100;
   if (tens >= 11 && tens <= 14) return `${count} абзацев`;

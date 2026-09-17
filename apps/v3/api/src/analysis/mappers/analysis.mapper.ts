@@ -151,11 +151,18 @@ function toRecommendations(fragments: RunPage["fragments"]): Recommendation[] {
   return fragments
     .filter((fragment) => fragment.selectedRank !== null)
     .toSorted((left, right) => left.selectedRank! - right.selectedRank!)
-    .map((fragment) => ({
-      rank: fragment.selectedRank! + 1,
-      heading: fragment.heading,
-      text: fragment.text,
-    }));
+    .map((fragment) => {
+      const relevance = clamp(fragment.relevance ?? 0);
+      const novelty = 1 - clamp(fragment.similarity ?? 0);
+      return {
+        rank: fragment.selectedRank! + 1,
+        heading: fragment.heading,
+        text: fragment.text,
+        relevance,
+        novelty,
+        priority: relevance * novelty,
+      };
+    });
 }
 
 function toFailure(run: RunRecord): AnalysisFailure {

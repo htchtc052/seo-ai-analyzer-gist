@@ -55,6 +55,9 @@ export type Recommendation = {
   rank: number;
   heading: string | null;
   text: string;
+  relevance: number;
+  novelty: number;
+  priority: number;
 };
 
 type AnalysisBase = {
