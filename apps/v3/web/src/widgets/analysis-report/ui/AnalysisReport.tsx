@@ -2,6 +2,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
@@ -28,7 +29,18 @@ import { formatPercent, formatScore } from "./report-format";
 type SortKey = "relevance" | "novelty" | "priority";
 
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
-  const [onlyPicked, setOnlyPicked] = useState(true);
+  const [closed, setClosed] = useState<ReadonlySet<string>>(
+    () =>
+      new Set(
+        run.pages
+          .filter(
+            (page) =>
+              page.status === "scored" &&
+              !page.fragments.some((item) => item.recommended),
+          )
+          .map((page) => page.url),
+      ),
+  );
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({
     key: "priority",
     desc: true,
@@ -50,6 +62,28 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
       page.status === "scored" ? total + page.fragments.length : total,
     0,
   );
+  const allClosed = run.pages.every(
+    (page) => page.status !== "scored" || closed.has(page.url),
+  );
+
+  function toggleOne(url: string) {
+    const next = new Set(closed);
+    if (next.has(url)) next.delete(url);
+    else next.add(url);
+    setClosed(next);
+  }
+
+  function toggleAll() {
+    setClosed(
+      allClosed
+        ? new Set()
+        : new Set(
+            run.pages
+              .filter((page) => page.status === "scored")
+              .map((page) => page.url),
+          ),
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -60,14 +94,8 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
             <span className="text-xs text-muted-foreground">
               модель {run.model}
             </span>
-            <Button
-              variant="outline"
-              onClick={() => setOnlyPicked(!onlyPicked)}
-              aria-pressed={onlyPicked}
-            >
-              {onlyPicked
-                ? `Показать все ${poolSize} абзацев`
-                : `Только рекомендованные (${picked})`}
+            <Button variant="outline" onClick={toggleAll}>
+              {allClosed ? "Раскрыть все страницы" : "Свернуть все страницы"}
             </Button>
           </div>
         </div>
@@ -128,7 +156,8 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                 <PageRows
                   key={page.url}
                   page={page}
-                  onlyPicked={onlyPicked}
+                  open={page.status === "scored" && !closed.has(page.url)}
+                  onToggle={() => toggleOne(page.url)}
                   sort={sort}
                 />
               ))}
@@ -142,28 +171,29 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
 
 function PageRows({
   page,
-  onlyPicked,
+  open,
+  onToggle,
   sort,
 }: {
   page: ReportPage;
-  onlyPicked: boolean;
+  open: boolean;
+  onToggle: () => void;
   sort: { key: SortKey; desc: boolean };
 }) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
-  const shown = (
-    onlyPicked
-      ? page.fragments.filter((item) => item.recommended)
-      : page.fragments
-  ).toSorted((left, right) =>
-    compare(left[sort.key], right[sort.key], sort.desc),
-  );
+  const shown = open
+    ? page.fragments.toSorted((left, right) =>
+        compare(left[sort.key], right[sort.key], sort.desc),
+      )
+    : [];
 
   return (
     <>
       <TableRow className={page.ours ? "bg-muted/40" : undefined}>
         <TableCell>
           <PageLink page={page} />
+          <PageSummary page={page} open={open} onToggle={onToggle} />
         </TableCell>
         <TableCell className="text-right tabular-nums">
           {formatScore(page.relevance)}
@@ -227,6 +257,46 @@ function FragmentRow({ fragment }: { fragment: ReportFragment }) {
       </TableCell>
     </TableRow>
   );
+}
+
+function PageSummary({
+  page,
+  open,
+  onToggle,
+}: {
+  page: Extract<ReportPage, { status: "scored" }>;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  if (page.fragments.length === 0) return null;
+
+  const picked = page.fragments.filter((item) => item.recommended).length;
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="mt-1.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+    >
+      <ChevronDown
+        className={cn("size-3.5 transition-transform", open && "rotate-180")}
+      />
+      {plural(page.fragments.length, "абзац", "абзаца", "абзацев")}
+      {picked > 0
+        ? ` · ${plural(picked, "рекомендован", "рекомендовано", "рекомендовано")}`
+        : " · ни один не выбран"}
+    </button>
+  );
+}
+
+function plural(count: number, one: string, few: string, many: string): string {
+  const last = count % 10;
+  const tens = count % 100;
+  if (tens >= 11 && tens <= 14) return `${count} ${many}`;
+  if (last === 1) return `${count} ${one}`;
+  if (last >= 2 && last <= 4) return `${count} ${few}`;
+  return `${count} ${many}`;
 }
 
 function SortHeader({
