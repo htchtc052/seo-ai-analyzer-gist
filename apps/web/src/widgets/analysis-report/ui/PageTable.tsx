@@ -160,9 +160,12 @@ export function PageTable({ pages, threshold }: PageTableProps) {
 
   return (
     <section className="grid gap-3">
-      <h3 className="text-sm font-semibold">
-        Страницы — что именно смотреть. Подсвечено то, что рекомендуем
-      </h3>
+      <h3 className="text-sm font-semibold">Страницы — что именно смотреть</h3>
+      <p className="text-xs leading-5 text-muted-foreground">
+        Зелёным подсвечены страницы конкурента, чья релевантность не ниже
+        порога, — это и есть рекомендация. Остальные строки оставлены справкой о
+        том, что обход посмотрел.
+      </p>
       <div className="overflow-hidden rounded-lg border bg-background">
         <Table>
           <TableHeader>
@@ -186,7 +189,7 @@ export function PageTable({ pages, threshold }: PageTableProps) {
               return (
                 <TableRow
                   key={row.id}
-                  className={recommended ? "bg-primary/5" : undefined}
+                  className={recommended ? "bg-primary/15" : undefined}
                 >
                   <TableCell>
                     {recommended && (
