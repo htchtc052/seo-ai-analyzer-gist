@@ -1,4 +1,6 @@
 FROM node:24-alpine AS build
+ARG APP_BASE_PATH=/
+ENV APP_BASE_PATH=$APP_BASE_PATH
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.json ./
 COPY apps/api/package.json apps/api/
