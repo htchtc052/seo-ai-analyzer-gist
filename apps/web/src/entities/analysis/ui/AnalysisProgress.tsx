@@ -115,9 +115,10 @@ function getActiveIndex(run: AnalysisRun): number {
 
 function getCurrentLabel(run: AnalysisRun): string {
   if (run.status === "queued") return "Ожидает запуска";
-  if (run.status === "crawling") return `Собрано страниц: ${run.progress.done}`;
+  if (run.status === "crawling")
+    return `Собрано страниц по обоим сайтам: ${run.progress.done}`;
   if (run.status === "crawled" || run.status === "analyzing")
-    return `Обработано страниц: ${run.progress.done} из ${run.progress.total}`;
+    return `Обработано ${run.progress.done} из ${run.progress.total} страниц по обоим сайтам`;
   if (run.status === "completed") return "Завершён";
   return "Остановлен с ошибкой";
 }
