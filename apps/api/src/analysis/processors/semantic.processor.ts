@@ -11,7 +11,9 @@ import {
 import { AnalysisWorkflowService } from "../services/analysis-workflow.service.js";
 import { SemanticQueueService } from "../services/semantic-queue.service.js";
 
-@Processor(SEMANTIC_QUEUE)
+const PAGE_CONCURRENCY = 4;
+
+@Processor(SEMANTIC_QUEUE, { concurrency: PAGE_CONCURRENCY })
 export class SemanticProcessor extends WorkerHost {
   private readonly logger = new Logger(SemanticProcessor.name);
 
