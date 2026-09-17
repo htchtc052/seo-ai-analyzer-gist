@@ -34,9 +34,48 @@ export type AnalysisSummary = {
   createdAt: string;
 };
 
-export type AnalysisRun = AnalysisSummary & {
+export type AnalysisFailure = {
+  reason: "unreachable" | "empty" | "internal";
+  url: string | null;
+  detail: string | null;
+};
+
+// Новизна и приоритет у нашей страницы отсутствуют: сравнивать её
+// с самой собой нечем.
+export type ReportPage = {
+  url: string;
+  title: string | null;
+  ours: boolean;
+  fragmentCount: number;
+  relevance: number;
+  novelty: number | null;
+  priority: number | null;
+};
+
+type AnalysisBase = {
+  id: string;
+  searchQuery: string;
   primaryUrl: string;
   competitorUrls: string[];
+  createdAt: string;
 };
+
+export type QueuedAnalysis = AnalysisBase & { status: "queued" };
+export type RunningAnalysis = AnalysisBase & {
+  status: "running";
+  progress: { done: number; total: number };
+};
+export type CompletedAnalysis = AnalysisBase & {
+  status: "completed";
+  model: string;
+  pages: ReportPage[];
+};
+export type FailedAnalysis = AnalysisBase & {
+  status: "failed";
+  error: AnalysisFailure;
+};
+
+export type AnalysisRun =
+  QueuedAnalysis | RunningAnalysis | CompletedAnalysis | FailedAnalysis;
 
 export type AnalysisReceipt = { id: string; status: "queued" };

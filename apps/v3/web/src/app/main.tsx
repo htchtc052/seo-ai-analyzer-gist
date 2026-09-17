@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, Outlet, Route, Routes } from "react-router";
 import { AnalysesPage } from "@/pages/AnalysesPage";
+import { AnalysisPage } from "@/pages/AnalysisPage";
 import { queryClient } from "./query-client";
 import "./styles.css";
 
@@ -33,6 +34,7 @@ createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<AnalysesPage />} />
+            <Route path="analyses/:id" element={<AnalysisPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

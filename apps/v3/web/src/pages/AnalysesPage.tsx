@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useAnalyses } from "@/entities/analysis";
 import { AnalysisForm, useStartAnalysis } from "@/features/start-analysis";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -38,11 +39,15 @@ export function AnalysesPage() {
           <ul className="grid gap-3">
             {analyses.data?.map((run) => (
               <li key={run.id} className="border-b pb-3 last:border-0">
-                <p className="font-medium">{run.searchQuery}</p>
-                <p className="text-muted-foreground text-sm">
-                  конкурентов: {run.competitorCount} · {run.status} ·{" "}
-                  {new Date(run.createdAt).toLocaleString("ru-RU")}
-                </p>
+                <Link to={`/analyses/${run.id}`} className="group grid gap-0.5">
+                  <span className="font-medium group-hover:text-primary">
+                    {run.searchQuery}
+                  </span>
+                  <span className="text-muted-foreground text-sm">
+                    конкурентов: {run.competitorCount} · {run.status} ·{" "}
+                    {new Date(run.createdAt).toLocaleString("ru-RU")}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
