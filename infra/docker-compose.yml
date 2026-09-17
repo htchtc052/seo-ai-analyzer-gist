@@ -5,15 +5,13 @@ name: seo-ai-analyzer
 #   /v2  — версия с обходом сайта
 #   /    — страница со ссылками и robots.txt
 # Traefik срезает префикс, поэтому внутри контейнеров пути обычные.
-# Postgres вынесен на хост, базы заводятся руками — см. DEPLOY.md.
+# Postgres и Redis стоят на самом хосте: их ставит infra/host-setup.sh,
+# и они переживают любые действия с контейнерами.
 
 x-api: &api
   restart: unless-stopped
   extra_hosts:
     - "host.docker.internal:host-gateway"
-  depends_on:
-    redis:
-      condition: service_healthy
 
 x-api-env: &api-env
   NODE_ENV: production
@@ -48,18 +46,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_acme:/letsencrypt
 
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD}
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} --no-auth-warning ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
   landing:
     image: nginx:1.29-alpine
     restart: unless-stopped
@@ -83,7 +69,7 @@ services:
     environment:
       <<: *api-env
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB_V1}?schema=public
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@host.docker.internal:6379/0
       LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-}
     labels:
       - traefik.enable=true
@@ -120,7 +106,7 @@ services:
     environment:
       <<: *api-env
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB_V2}?schema=public
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      REDIS_URL: redis://:${REDIS_PASSWORD}@host.docker.internal:6379/1
     labels:
       - traefik.enable=true
       - traefik.http.routers.v2-api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v2/api`)
@@ -149,5 +135,4 @@ services:
       - traefik.http.services.v2-web.loadbalancer.server.port=80
 
 volumes:
-  redis_data:
   traefik_acme:

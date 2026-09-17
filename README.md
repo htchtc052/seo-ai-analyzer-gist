@@ -56,4 +56,6 @@ infra                       прод-компоуз, лендинг и скри�
 docs                        справочные материалы
 ```
 
-Деплой описан в [`infra/DEPLOY.md`](infra/DEPLOY.md).
+Хост под прод готовит [`infra/host-setup.sh`](infra/host-setup.sh) — он ставит
+PostgreSQL и Redis и настраивает их под контейнеры. Дальше
+[`infra/deploy.sh`](infra/deploy.sh) собирает образы и поднимает всё остальное.

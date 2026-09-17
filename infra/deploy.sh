@@ -3,7 +3,6 @@ set -eu
 cd "$(dirname "$0")"
 
 docker compose build v1-api v1-web v2-api v2-web
-docker compose up -d --wait redis
 docker compose run --rm v1-api npx --no-install prisma migrate deploy
 docker compose run --rm v2-api npx --no-install prisma migrate deploy
 docker compose up -d
