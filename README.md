@@ -57,7 +57,7 @@ embeddings. Запрос и фрагменты уходят простым те�
 apps/landing                оглавление поддомена и его robots.txt
 apps/v1/{api,web,examples}  первая версия
 apps/v2/{api,web}           версия с обходом
-apps/v3/{api,web}           версия по конкретным ссылкам
+apps/v3/{api,web,gist}      версия по конкретным ссылкам, gist — сервис отбора на Python
 infra                       прод-компоуз и скрипты деплоя
 docs                        справочные материалы
 ```

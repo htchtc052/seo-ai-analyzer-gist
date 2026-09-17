@@ -33,6 +33,23 @@ process.env.LLM_BASE_URL = `${origin(embeddings)}/v1`;
 process.env.LLM_API_KEY = "test";
 process.env.LLM_EMBEDDING_MODEL = "test-embedding";
 
+const selection = createServer(async (request, response) => {
+  let body = "";
+  for await (const chunk of request) body += chunk;
+  const payload = JSON.parse(body) as { weights: number[]; k: number };
+  const indices = payload.weights
+    .map((weight, index) => ({ weight, index }))
+    .toSorted((left, right) => right.weight - left.weight)
+    .slice(0, payload.k)
+    .map((entry) => entry.index);
+  response.setHeader("Content-Type", "application/json");
+  response.end(
+    JSON.stringify({ indices, objective: 2, utility: 1.5, diversity: 0.5 }),
+  );
+});
+await listen(selection);
+process.env.GIST_URL = origin(selection);
+
 const { createApplication } = await import("./bootstrap.js");
 const { PrismaClient } = await import("@prisma/client");
 const prisma = new PrismaClient();
@@ -41,6 +58,7 @@ after(async () => {
   await prisma.analysis.deleteMany({ where: { searchQuery: SEARCH_QUERY } });
   await prisma.$disconnect();
   await close(embeddings);
+  await close(selection);
 });
 
 test("health boundary", async () => {
@@ -151,6 +169,18 @@ test("analysis boundary scores every named page", async () => {
       (rivals[0]!.priority as number) >= (rivals[1]!.priority as number),
       "rivals must be ordered by priority",
     );
+
+    const recommendations = run!.recommendations as Array<
+      Record<string, unknown>
+    >;
+    assert(recommendations.length > 0);
+    for (const item of recommendations) {
+      assert(input.competitorUrls.includes(item.url as string));
+      assert((item.text as string).length > 0);
+      assert(Number.isFinite(item.gap as number));
+    }
+    const scores = run!.selection as Record<string, number>;
+    assert(Number.isFinite(scores.objective));
   } finally {
     await app.close();
     await close(site);

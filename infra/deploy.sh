@@ -11,7 +11,7 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
-docker compose build landing v1-api v1-web v2-api v2-web v3-api v3-web
+docker compose build landing gist v1-api v1-web v2-api v2-web v3-api v3-web
 docker compose run --rm v1-api npx --no-install prisma migrate deploy
 docker compose run --rm v2-api npx --no-install prisma migrate deploy
 docker compose run --rm v3-api npx --no-install prisma migrate deploy

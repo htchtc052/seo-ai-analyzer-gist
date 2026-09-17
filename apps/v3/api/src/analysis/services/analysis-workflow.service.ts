@@ -5,7 +5,11 @@ import { ContentExtractorService } from "../../pages/services/content-extractor.
 import { PageClientService } from "../../pages/services/page-client.service.js";
 import type { FragmentInput } from "../dto/analysis.types.js";
 import { AnalysisRepository } from "../repositories/analysis.repository.js";
+import { SelectionClientService } from "../../selection/services/selection-client.service.js";
 import { SemanticComparisonService } from "./semantic-comparison.service.js";
+
+const RECOMMENDATION_COUNT = 5;
+const MIN_RECOMMENDATION_LENGTH = 150;
 
 @Injectable()
 export class AnalysisWorkflowService {
@@ -18,6 +22,8 @@ export class AnalysisWorkflowService {
     private readonly extractor: ContentExtractorService,
     @Inject(SemanticComparisonService)
     private readonly semantics: SemanticComparisonService,
+    @Inject(SelectionClientService)
+    private readonly selection: SelectionClientService,
   ) {}
 
   async embedPage(analysisId: string, pageId: string): Promise<boolean> {
@@ -55,8 +61,29 @@ export class AnalysisWorkflowService {
   async finalize(id: string): Promise<void> {
     const { ours, theirs } = await this.analyses.findVectors(id);
     if (theirs.length === 0) throw new Error("Every competitor page failed");
+
     const similarities = this.semantics.similarities(ours, theirs);
-    await this.analyses.complete(id, this.semantics.model, similarities);
+    const gaps = new Map(
+      similarities.map((entry) => [entry.id, entry.similarity]),
+    );
+    const candidates = theirs
+      .filter((fragment) => fragment.text.length >= MIN_RECOMMENDATION_LENGTH)
+      .map((fragment) => ({
+        id: fragment.id,
+        embedding: fragment.embedding,
+        weight: toGap(fragment.relevance, gaps.get(fragment.id)),
+      }));
+    const selection =
+      candidates.length === 0
+        ? { ids: [], objective: 0, utility: 0, diversity: 0 }
+        : await this.selection.select(candidates, RECOMMENDATION_COUNT);
+
+    await this.analyses.complete(
+      id,
+      this.semantics.model,
+      similarities,
+      selection,
+    );
   }
 
   async fail(id: string, error: Error): Promise<void> {
@@ -75,6 +102,17 @@ function toFragments(
       text,
     })),
   );
+}
+
+function toGap(
+  relevance: number | null,
+  similarity: number | undefined,
+): number {
+  return clamp(relevance ?? 0) * (1 - clamp(similarity ?? 0));
+}
+
+function clamp(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
 
 function isPageFailure(

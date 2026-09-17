@@ -3,6 +3,7 @@ import type {
   AnalysisFailure,
   AnalysisRun,
   AnalysisSummary,
+  Recommendation,
   ReportPage,
 } from "../dto/analysis.types.js";
 
@@ -19,6 +20,15 @@ export const runInclude = Prisma.validator<Prisma.AnalysisInclude>()({
       fragments: { select: { relevance: true, similarity: true } },
     },
   },
+});
+
+export const recommendationSelect = Prisma.validator<Prisma.FragmentSelect>()({
+  heading: true,
+  text: true,
+  relevance: true,
+  similarity: true,
+  selectedRank: true,
+  page: { select: { url: true, title: true } },
 });
 
 export const summarySelect = Prisma.validator<Prisma.AnalysisSelect>()({
@@ -45,7 +55,29 @@ export function toAnalysisSummary(run: SummaryRecord): AnalysisSummary {
   };
 }
 
-export function toAnalysisRun(run: RunRecord): AnalysisRun {
+type RecommendationRecord = Prisma.FragmentGetPayload<{
+  select: typeof recommendationSelect;
+}>;
+
+export function toRecommendations(
+  fragments: RecommendationRecord[],
+): Recommendation[] {
+  return fragments
+    .toSorted((left, right) => left.selectedRank! - right.selectedRank!)
+    .map((fragment) => ({
+      url: fragment.page.url,
+      title: fragment.page.title!,
+      heading: fragment.heading,
+      text: fragment.text,
+      gap:
+        clamp(fragment.relevance ?? 0) * (1 - clamp(fragment.similarity ?? 0)),
+    }));
+}
+
+export function toAnalysisRun(
+  run: RunRecord,
+  recommendations: Recommendation[],
+): AnalysisRun {
   const base = {
     id: run.id,
     searchQuery: run.searchQuery,
@@ -79,6 +111,12 @@ export function toAnalysisRun(run: RunRecord): AnalysisRun {
     status: "completed",
     model: run.embeddingModel!,
     pages: toReportPages(run.pages),
+    recommendations,
+    selection: {
+      objective: run.selectionObjective!,
+      utility: run.selectionUtility!,
+      diversity: run.selectionDiversity!,
+    },
   };
 }
 

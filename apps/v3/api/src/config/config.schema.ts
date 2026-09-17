@@ -9,6 +9,7 @@ export const configSchema = z.object({
   LLM_BASE_URL: z.url(),
   LLM_API_KEY: z.string().min(1),
   LLM_EMBEDDING_MODEL: z.string().min(1),
+  GIST_URL: z.url({ protocol: /^https?$/ }),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

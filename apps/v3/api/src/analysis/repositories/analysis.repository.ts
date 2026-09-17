@@ -2,16 +2,19 @@ import { Inject, Injectable } from "@nestjs/common";
 import { AnalysisStatus, FailureReason, PageSource } from "@prisma/client";
 import { PrismaService } from "../../prisma/services/prisma.service.js";
 import type { AnalysisInputDto } from "../dto/analysis-input.schema.js";
+import type { Selection } from "../../selection/selection.types.js";
 import type {
   AnalysisRun,
   AnalysisSummary,
   EmbeddedFragment,
 } from "../dto/analysis.types.js";
 import {
+  recommendationSelect,
   runInclude,
   summarySelect,
   toAnalysisRun,
   toAnalysisSummary,
+  toRecommendations,
 } from "../mappers/analysis.mapper.js";
 
 @Injectable()
@@ -48,7 +51,13 @@ export class AnalysisRepository {
       where: { id },
       include: runInclude,
     });
-    return run ? toAnalysisRun(run) : null;
+    if (!run) return null;
+
+    const selected = await this.prisma.fragment.findMany({
+      where: { page: { analysisId: id }, selectedRank: { not: null } },
+      select: recommendationSelect,
+    });
+    return toAnalysisRun(run, toRecommendations(selected));
   }
 
   async list(): Promise<AnalysisSummary[]> {
@@ -136,7 +145,9 @@ export class AnalysisRepository {
       where: { analysisId },
       select: {
         source: true,
-        fragments: { select: { id: true, embedding: true } },
+        fragments: {
+          select: { id: true, embedding: true, relevance: true, text: true },
+        },
       },
     });
     const bySource = (source: PageSource) =>
@@ -153,6 +164,7 @@ export class AnalysisRepository {
     id: string,
     model: string,
     similarities: Array<{ id: string; similarity: number }>,
+    selection: Selection,
   ): Promise<void> {
     await this.prisma.$transaction([
       ...similarities.map((entry) =>
@@ -161,12 +173,21 @@ export class AnalysisRepository {
           data: { similarity: entry.similarity },
         }),
       ),
+      ...selection.ids.map((fragmentId, index) =>
+        this.prisma.fragment.update({
+          where: { id: fragmentId },
+          data: { selectedRank: index },
+        }),
+      ),
       this.prisma.analysis.update({
         where: { id },
         data: {
           status: AnalysisStatus.COMPLETED,
           embeddingModel: model,
           completedAt: new Date(),
+          selectionObjective: selection.objective,
+          selectionUtility: selection.utility,
+          selectionDiversity: selection.diversity,
         },
       }),
     ]);

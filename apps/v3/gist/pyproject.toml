@@ -1,0 +1,14 @@
+[project]
+name = "gist-service"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi>=0.118",
+  "uvicorn>=0.38",
+  "numpy>=2.1",
+  "scipy>=1.14",
+  "gist-select @ git+https://github.com/stabgan/gist-select.git",
+]
+
+[tool.setuptools]
+py-modules = []

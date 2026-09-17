@@ -124,13 +124,23 @@ services:
       - traefik.http.middlewares.v2-web-strip.stripprefix.prefixes=/v2
       - traefik.http.services.v2-web.loadbalancer.server.port=80
 
+  gist:
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: apps/v3/gist/.docker/Dockerfile
+
   v3-api:
     <<: *api
     build:
       context: ..
       dockerfile: apps/v3/api/.docker/Dockerfile
+    depends_on:
+      gist:
+        condition: service_started
     environment:
       <<: *api-env
+      GIST_URL: http://gist:8000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB_V3}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@host.docker.internal:6379/2
     labels:

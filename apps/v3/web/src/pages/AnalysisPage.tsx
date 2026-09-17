@@ -7,7 +7,7 @@ import {
 } from "@/entities/analysis";
 import { DeleteAnalysisButton } from "@/features/delete-analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
-import { AnalysisReport } from "@/widgets/analysis-report";
+import { AnalysisReport, RecommendationList } from "@/widgets/analysis-report";
 
 export function AnalysisPage() {
   const { id } = useParams();
@@ -40,7 +40,12 @@ export function AnalysisPage() {
       {run.status === "failed" && (
         <Failure report={analysisFailureReport(run)} />
       )}
-      {run.status === "completed" && <AnalysisReport run={run} />}
+      {run.status === "completed" && (
+        <>
+          <AnalysisReport run={run} />
+          <RecommendationList run={run} />
+        </>
+      )}
     </div>
   );
 }

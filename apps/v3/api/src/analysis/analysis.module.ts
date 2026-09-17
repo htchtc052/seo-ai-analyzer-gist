@@ -13,12 +13,14 @@ import { SemanticComparisonService } from "./services/semantic-comparison.servic
 import { EmbeddingsModule } from "../embeddings/embeddings.module.js";
 import { PagesModule } from "../pages/pages.module.js";
 import { PrismaModule } from "../prisma/prisma.module.js";
+import { SelectionModule } from "../selection/selection.module.js";
 
 @Module({
   imports: [
     PrismaModule,
     PagesModule,
     EmbeddingsModule,
+    SelectionModule,
     BullModule.registerQueue({ name: ANALYSIS_QUEUE }),
   ],
   controllers: [AnalysisController],

@@ -50,6 +50,20 @@ export type ReportPage = { url: string; ours: boolean } & (
   | { status: "failed"; reason: "unreachable" | "empty"; detail: string }
 );
 
+export type Recommendation = {
+  url: string;
+  title: string;
+  heading: string | null;
+  text: string;
+  gap: number;
+};
+
+export type SelectionScores = {
+  objective: number;
+  utility: number;
+  diversity: number;
+};
+
 type AnalysisBase = {
   id: string;
   searchQuery: string;
@@ -67,6 +81,8 @@ export type CompletedAnalysis = AnalysisBase & {
   status: "completed";
   model: string;
   pages: ReportPage[];
+  recommendations: Recommendation[];
+  selection: SelectionScores;
 };
 export type FailedAnalysis = AnalysisBase & {
   status: "failed";
