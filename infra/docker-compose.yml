@@ -3,6 +3,7 @@ name: seo-ai-analyzer
 # Версии инструмента живут на одном поддомене, каждая в своей папке:
 #   /v1  — первая попытка
 #   /v2  — версия с обходом сайта
+#   /v3  — версия по конкретным ссылкам
 #   /    — оглавление и единственный robots.txt всего поддомена
 # Traefik срезает префикс, поэтому внутри контейнеров пути обычные.
 # Postgres и Redis стоят на самом хосте: их ставит infra/host-setup.sh,
@@ -131,6 +132,42 @@ services:
       - traefik.http.routers.v2-web.middlewares=v2-web-strip
       - traefik.http.middlewares.v2-web-strip.stripprefix.prefixes=/v2
       - traefik.http.services.v2-web.loadbalancer.server.port=80
+
+  v3-api:
+    <<: *api
+    build:
+      context: ..
+      dockerfile: apps/v3/api/.docker/Dockerfile
+    environment:
+      <<: *api-env
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB_V3}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@host.docker.internal:6379/2
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.v3-api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v3/api`)
+      - traefik.http.routers.v3-api.priority=20
+      - traefik.http.routers.v3-api.entrypoints=websecure
+      - traefik.http.routers.v3-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.v3-api.middlewares=v3-api-strip
+      - traefik.http.middlewares.v3-api-strip.stripprefix.prefixes=/v3
+      - traefik.http.services.v3-api.loadbalancer.server.port=3001
+
+  v3-web:
+    <<: *web
+    build:
+      context: ..
+      dockerfile: apps/v3/web/.docker/Dockerfile
+      args:
+        APP_BASE_PATH: /v3/
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.v3-web.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v3`)
+      - traefik.http.routers.v3-web.priority=10
+      - traefik.http.routers.v3-web.entrypoints=websecure
+      - traefik.http.routers.v3-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.v3-web.middlewares=v3-web-strip
+      - traefik.http.middlewares.v3-web-strip.stripprefix.prefixes=/v3
+      - traefik.http.services.v3-web.loadbalancer.server.port=80
 
 volumes:
   traefik_acme:

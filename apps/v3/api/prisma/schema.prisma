@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+  // Свой клиент на версию: общий node_modules один на монорепу,
+  // и без этого версии перетирают сгенерированные типы друг друга.
+  output   = "../node_modules/@prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Пока здесь только то, что заказчик назвал прямо: запрос, наш адрес и
+// список адресов конкурентов. Модель разбора и оценок появится вместе с ТЗ.
+
+enum AnalysisStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Analysis {
+  id             String         @id @default(uuid())
+  searchQuery    String
+  primaryUrl     String
+  competitorUrls String[]
+  status         AnalysisStatus @default(QUEUED)
+  createdAt      DateTime       @default(now())
+
+  @@index([createdAt])
+}

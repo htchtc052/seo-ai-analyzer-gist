@@ -8,6 +8,8 @@ COPY apps/v1/web/package.json apps/v1/web/
 COPY apps/v1/examples/package.json apps/v1/examples/
 COPY apps/v2/api/package.json apps/v2/api/
 COPY apps/v2/web/package.json apps/v2/web/
+COPY apps/v3/api/package.json apps/v3/api/
+COPY apps/v3/web/package.json apps/v3/web/
 RUN npm ci --no-audit --no-fund
 COPY apps/v1/examples apps/v1/examples
 COPY apps/v1/web apps/v1/web
