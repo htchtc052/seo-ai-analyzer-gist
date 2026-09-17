@@ -5,6 +5,7 @@ import type { AppConfig } from "../../config/config.schema.js";
 
 const MAX_ATTEMPTS = 5;
 const FINGERPRINT_LENGTH = 8;
+const MAX_INPUT_CHARS = 8_000;
 
 class BrokenBatchError extends Error {}
 
@@ -46,7 +47,7 @@ export class EmbeddingsService {
   private async request(texts: string[]): Promise<number[][]> {
     const response = await this.client.embeddings.create({
       model: this.model,
-      input: texts,
+      input: texts.map((text) => text.slice(0, MAX_INPUT_CHARS)),
       encoding_format: "float",
     });
 
