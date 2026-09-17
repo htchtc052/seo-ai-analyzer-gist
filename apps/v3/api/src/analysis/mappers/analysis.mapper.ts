@@ -159,8 +159,6 @@ function toRecommendations(fragments: RunPage["fragments"]): Recommendation[] {
     .map((fragment) => ({
       heading: fragment.heading,
       text: fragment.text,
-      gap:
-        clamp(fragment.relevance ?? 0) * (1 - clamp(fragment.similarity ?? 0)),
     }));
 }
 

@@ -32,7 +32,6 @@ export type ReportPage = { url: string; ours: boolean } & (
 export type Recommendation = {
   heading: string | null;
   text: string;
-  gap: number;
 };
 
 export type SelectionScores = {

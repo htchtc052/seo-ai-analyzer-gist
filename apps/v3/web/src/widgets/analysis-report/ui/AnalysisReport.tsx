@@ -1,10 +1,5 @@
-import { ChevronDown, ExternalLink } from "lucide-react";
-import { useState } from "react";
-import type {
-  CompletedAnalysis,
-  Recommendation,
-  ReportPage,
-} from "@/entities/analysis";
+import { ExternalLink, Info } from "lucide-react";
+import type { CompletedAnalysis, ReportPage } from "@/entities/analysis";
 import {
   Table,
   TableBody,
@@ -13,13 +8,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
-import { TooltipProvider } from "@/shared/ui/tooltip";
-import { cn } from "cn";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
 import { ColumnHelp } from "./ColumnHelp";
+import { RecommendationDialog } from "./RecommendationDialog";
 import { formatPercent, formatScore } from "./report-format";
 
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
-  const [opened, setOpened] = useState<string | null>(null);
+  const totalFragments = run.pages.reduce(
+    (total, page) =>
+      page.status === "scored" && !page.ours
+        ? total + page.fragmentCount
+        : total,
+    0,
+  );
+  const selectedTotal = run.pages.reduce(
+    (total, page) =>
+      page.status === "scored" ? total + page.recommendations.length : total,
+    0,
+  );
 
   return (
     <TooltipProvider>
@@ -40,7 +51,7 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                   <ColumnHelp
                     label="Релевантность"
                     reference="страницы запросу"
-                    formula="среднее cos(запрос, фрагмент) по фрагментам страницы"
+                    formula="среднее cos(запрос, абзац) по абзацам страницы"
                     note="Насколько страница вообще про запрос. Величина абсолютная: её диапазоны задаёт модель, поэтому она сравнима между запусками. Около 0.25 — уровень текста, не связанного с запросом."
                   />
                 </TableHead>
@@ -48,30 +59,15 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                   <ColumnHelp
                     label="Новизна"
                     reference="страницы относительно нашей"
-                    formula="Σ(релевантность × (1 − похожесть)) ÷ Σ релевантность"
-                    note="Какая доля релевантного содержания страницы не похожа на нашу. Похожесть фрагмента — наибольший cos до фрагментов нашей страницы, поэтому величина относительна и зависит от того, что написано именно у нас. Короткий абзац почти всегда выглядит новее длинного: совпасть ему не с чем. У нашей страницы новизны нет — сравнивать её с самой собой нечем."
+                    formula="Σ(релевантность × новизна абзаца) ÷ Σ релевантность"
+                    note="Какая доля релевантного содержания страницы не похожа на нашу. Новизна абзаца — это 1 минус наибольший cos до абзацев нашей страницы, поэтому величина относительна и зависит от того, что написано именно у нас. Короткий абзац почти всегда выглядит новее длинного: совпасть ему не с чем."
                   />
                 </TableHead>
                 <TableHead className="text-right">
                   <ColumnHelp
-                    label="Приоритет"
-                    reference="страницы как нового покрытия"
-                    formula="релевантность × новизна"
-                    note="Насколько стоит позаимствовать с этой страницы: высок, только когда она одновременно про запрос и не похожа на то, что у нас уже есть. Относительность наследует от новизны."
-                  />
-                </TableHead>
-                <TableHead className="text-right">
-                  <ColumnHelp
-                    label="Фрагментов"
-                    formula="число абзацев, попавших в разбор"
-                    note="Сколько абзацев извлеклось из статьи. Влияет на устойчивость остальных чисел: по трём абзацам средние шумят."
-                  />
-                </TableHead>
-                <TableHead className="text-right">
-                  <ColumnHelp
-                    label="Рекомендаций"
+                    label="Рекомендации"
                     formula="сколько абзацев этой страницы выбрал GIST"
-                    note="Отбор идёт не по страницам, а сразу по всем абзацам конкурентов: GIST берёт пять, которые ценны и при этом не повторяют друг друга. Поэтому прочерк не значит, что страница плохая — он значит, что её сильные абзацы говорят о том же, что уже взято с другой страницы. Нажмите на число, чтобы увидеть выбранные абзацы."
+                    note="Отбор идёт сразу по всем абзацам конкурентов, а не по страницам. Подробности — внутри, по кнопке."
                   />
                 </TableHead>
               </TableRow>
@@ -81,23 +77,13 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                 <Row
                   key={page.url}
                   page={page}
-                  opened={opened === page.url}
-                  onToggle={() =>
-                    setOpened(opened === page.url ? null : page.url)
-                  }
+                  totalFragments={totalFragments}
+                  selectedTotal={selectedTotal}
                 />
               ))}
             </TableBody>
           </Table>
         </div>
-
-        <p className="text-xs text-muted-foreground">
-          Отбор GIST по всем страницам: ценность{" "}
-          {formatScore(run.selection.utility)}, разнообразие{" "}
-          {formatScore(run.selection.diversity)}, итог{" "}
-          {formatScore(run.selection.objective)}. Ценность — сумма разрывов
-          выбранных абзацев, разнообразие — наименьшее расстояние между ними.
-        </p>
       </section>
     </TooltipProvider>
   );
@@ -105,81 +91,79 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
 
 function Row({
   page,
-  opened,
-  onToggle,
+  totalFragments,
+  selectedTotal,
 }: {
   page: ReportPage;
-  opened: boolean;
-  onToggle: () => void;
+  totalFragments: number;
+  selectedTotal: number;
 }) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
   return (
-    <>
-      <TableRow className={page.ours ? "bg-muted/40" : undefined}>
-        <TableCell>
-          <PageLink page={page} />
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {formatScore(page.relevance)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
-        </TableCell>
-        <TableCell className="text-right font-medium tabular-nums">
-          {page.priority === null ? <Dash /> : formatScore(page.priority)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {page.fragmentCount}
-        </TableCell>
-        <TableCell className="text-right">
-          {page.recommendations.length === 0 ? (
-            <Dash />
-          ) : (
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-expanded={opened}
-              className="inline-flex items-center gap-1 tabular-nums hover:text-primary"
-            >
-              {page.recommendations.length}
-              <ChevronDown
-                className={cn(
-                  "size-3.5 transition-transform",
-                  opened && "rotate-180",
-                )}
-              />
-            </button>
-          )}
-        </TableCell>
-      </TableRow>
-
-      {opened && (
-        <TableRow className="bg-muted/20 hover:bg-muted/20">
-          <TableCell colSpan={6}>
-            <ol className="grid gap-3">
-              {page.recommendations.map((item, index) => (
-                <Quote key={index} item={item} />
-              ))}
-            </ol>
-          </TableCell>
-        </TableRow>
-      )}
-    </>
+    <TableRow className={page.ours ? "bg-muted/40" : undefined}>
+      <TableCell>
+        <PageLink page={page} />
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatScore(page.relevance)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
+      </TableCell>
+      <TableCell className="text-right">
+        {page.recommendations.length > 0 ? (
+          <RecommendationDialog
+            page={page}
+            totalFragments={totalFragments}
+            selectedTotal={selectedTotal}
+          />
+        ) : page.priority === null ? (
+          <Dash />
+        ) : (
+          <SkippedHelp priority={page.priority} selectedTotal={selectedTotal} />
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
 
-function Quote({ item }: { item: Recommendation }) {
+function SkippedHelp({
+  priority,
+  selectedTotal,
+}: {
+  priority: number;
+  selectedTotal: number;
+}) {
   return (
-    <li className="grid gap-1 border-l-2 pl-3">
-      <div className="flex items-baseline justify-between gap-4 text-xs text-muted-foreground">
-        <span>{item.heading ?? "без заголовка"}</span>
-        <span className="shrink-0 tabular-nums">
-          разрыв {formatScore(item.gap)}
-        </span>
-      </div>
-      <p className="text-sm leading-6 whitespace-normal">{item.text}</p>
-    </li>
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+      <span className="text-xs tabular-nums">
+        приоритет {formatScore(priority)}
+      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label="Почему нет рекомендаций"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Info className="size-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <span className="block font-semibold">Почему ничего не выбрано</span>
+          <code className="mt-1.5 block text-[0.6875rem] leading-5">
+            приоритет = релевантность × новизна
+          </code>
+          <span className="mt-2 block">
+            Приоритет посчитан, он про страницу целиком. А отбор идёт по
+            абзацам: GIST берёт {selectedTotal} штук сразу со всех конкурентов и
+            отбрасывает те, что повторяют уже взятое. Значит сильные абзацы этой
+            страницы говорят о том же, что нашлось у другой.
+          </span>
+        </TooltipContent>
+      </Tooltip>
+    </span>
   );
 }
 
@@ -230,7 +214,7 @@ function FailedRow({
           </span>
         </a>
       </TableCell>
-      <TableCell colSpan={5} className="text-sm">
+      <TableCell colSpan={3} className="text-sm">
         {page.reason === "empty"
           ? "Читаемого текста статьи не нашлось"
           : "Страница не открылась"}
