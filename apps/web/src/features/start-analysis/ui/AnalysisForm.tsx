@@ -13,6 +13,8 @@ import {
 import { Input } from "@/shared/ui/input";
 import { analysisInputSchema, type AnalysisInput } from "@/entities/analysis";
 
+const PAGE_STEP = 3;
+
 type AnalysisFormProps = {
   onSubmit: (input: AnalysisInput) => void;
   isStarting: boolean;
@@ -37,14 +39,14 @@ export function AnalysisForm({
       searchQuery: "",
       primarySiteUrl: "",
       competitorSiteUrl: "",
-      maxPagesPerSite: 15,
+      crawlPagesPerSite: 45,
     },
   });
 
   function adjustPageLimit(delta: number) {
-    const current = getValues("maxPagesPerSite");
-    const value = Math.min(30, Math.max(1, current + delta));
-    setValue("maxPagesPerSite", value, {
+    const current = getValues("crawlPagesPerSite");
+    const value = Math.min(90, Math.max(3, current + delta * PAGE_STEP));
+    setValue("crawlPagesPerSite", value, {
       shouldDirty: true,
       shouldValidate: true,
     });
@@ -89,8 +91,8 @@ export function AnalysisForm({
           <FieldError errors={[errors.competitorSiteUrl]} />
         </Field>
         <Field>
-          <FieldLabel htmlFor="maxPagesPerSite">
-            Максимум страниц на сайт
+          <FieldLabel htmlFor="crawlPagesPerSite">
+            Сколько страниц обойти на сайте
           </FieldLabel>
           <div className="flex max-w-52 items-center">
             <Button
@@ -104,16 +106,16 @@ export function AnalysisForm({
               <Minus />
             </Button>
             <Input
-              id="maxPagesPerSite"
+              id="crawlPagesPerSite"
               type="number"
-              min={1}
-              max={30}
-              step={1}
+              min={3}
+              max={90}
+              step={PAGE_STEP}
               inputMode="numeric"
-              aria-invalid={Boolean(errors.maxPagesPerSite)}
+              aria-invalid={Boolean(errors.crawlPagesPerSite)}
               disabled={isStarting}
               className="rounded-none border-x-0 text-center shadow-none"
-              {...register("maxPagesPerSite", { valueAsNumber: true })}
+              {...register("crawlPagesPerSite", { valueAsNumber: true })}
             />
             <Button
               type="button"
@@ -127,14 +129,15 @@ export function AnalysisForm({
             </Button>
           </div>
           <FieldDescription>
-            Обход всегда идёт от корня домена, поэтому ссылку на конкретную
-            статью можно не искать. Сохраняются только содержательные страницы,
-            допустимо от 1 до 30. Сайт может оказаться недоступным для обхода:
-            закрыться проверкой на бота, ответить ошибкой или отдавать текст
-            только через JavaScript — тогда анализ завершится с ошибкой и
-            назовёт адрес, на котором остановился.
+            Это бюджет обхода, а не размер отчёта: в таблицу попадёт лучшая
+            треть — те страницы, что ближе всего к запросу. Больше обход —
+            больше шансов найти нужное, но дольше. Обход идёт от корня домена,
+            искать ссылку на статью не нужно. Сайт может закрыться проверкой на
+            бота, ответить ошибкой или отдавать текст только через JavaScript —
+            тогда анализ честно завершится ошибкой и назовёт адрес, на котором
+            остановился.
           </FieldDescription>
-          <FieldError errors={[errors.maxPagesPerSite]} />
+          <FieldError errors={[errors.crawlPagesPerSite]} />
         </Field>
         <Button
           type="submit"

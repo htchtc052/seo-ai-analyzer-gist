@@ -14,13 +14,13 @@ import { foldTerm } from "./query-terms.service.js";
 import { RobotsService, type RobotRules } from "./robots.service.js";
 import { SitemapService } from "./sitemap.service.js";
 
-const VISITED_PAGE_FACTOR = 8;
+const VISITED_PAGE_FACTOR = 3;
 const MIN_VISITED_PAGES = 40;
 const MIN_CONTENT_LENGTH = 300;
 const DEFAULT_CRAWL_DELAY_MS = 500;
 const MIN_TOKEN_LENGTH = 3;
 const MAX_SEEDED_URLS = 300;
-const CANDIDATE_FACTOR = 3;
+const REPORT_SHARE = 3;
 const MIN_PREFIX_LENGTH = 4;
 
 type FrontierLink = {
@@ -45,7 +45,7 @@ export class SiteCrawlerService {
 
   async crawl(
     startUrl: string,
-    maxPages: number,
+    crawlPages: number,
     searchQuery: string,
     onPage: () => Promise<void>,
   ): Promise<CrawledSite> {
@@ -81,15 +81,13 @@ export class SiteCrawlerService {
     }
     const maxVisitedPages = Math.max(
       MIN_VISITED_PAGES,
-      maxPages * VISITED_PAGE_FACTOR,
+      crawlPages * VISITED_PAGE_FACTOR,
     );
-
-    const maxCandidates = maxPages * CANDIDATE_FACTOR;
 
     while (
       frontier.length > 0 &&
       visited < maxVisitedPages &&
-      pages.length < maxCandidates
+      pages.length < crawlPages
     ) {
       const next = takeBestLink(frontier);
       if (robots.isDisallowed(next.url, CRAWLER_USER_AGENT)) {
@@ -150,7 +148,7 @@ export class SiteCrawlerService {
     const selected = pages
       .map((page) => ({ page, score: contentScore(weights, page) }))
       .toSorted((left, right) => right.score - left.score)
-      .slice(0, maxPages)
+      .slice(0, Math.ceil(crawlPages / REPORT_SHARE))
       .map((candidate) => candidate.page);
     this.logger.log(
       `${origin}: kept ${selected.length} of ${pages.length} readable pages`,

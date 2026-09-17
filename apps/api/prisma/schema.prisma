@@ -37,7 +37,7 @@ model Analysis {
   searchQuery       String
   primarySiteUrl    String
   competitorSiteUrl String
-  maxPagesPerSite   Int
+  crawlPagesPerSite Int
   status            AnalysisStatus @default(QUEUED)
   crawledPages      Int            @default(0)
   embeddingModel    String?

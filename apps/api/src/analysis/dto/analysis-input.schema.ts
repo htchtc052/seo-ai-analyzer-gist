@@ -8,7 +8,7 @@ export const analysisInputSchema = z.object({
   searchQuery: z.string().trim().min(1, "searchQuery is required").max(500),
   primarySiteUrl: siteUrlSchema,
   competitorSiteUrl: siteUrlSchema,
-  maxPagesPerSite: z.coerce.number().int().min(1).max(30),
+  crawlPagesPerSite: z.coerce.number().int().min(3).max(90),
 });
 
 export type AnalysisInputDto = z.infer<typeof analysisInputSchema>;

@@ -107,7 +107,7 @@ test("analysis boundary", async () => {
         searchQuery: "handmade rugs",
         primarySiteUrl: "invalid",
         competitorSiteUrl: "https://example.com",
-        maxPagesPerSite: 2,
+        crawlPagesPerSite: 6,
       }),
     });
     assert.equal(invalid.status, 400);
@@ -116,7 +116,7 @@ test("analysis boundary", async () => {
       searchQuery: "handmade rugs",
       primarySiteUrl: siteUrl,
       competitorSiteUrl: siteUrl,
-      maxPagesPerSite: 2,
+      crawlPagesPerSite: 6,
     };
     const response = await fetch(endpoint, {
       method: "POST",
@@ -152,7 +152,7 @@ test("analysis boundary", async () => {
     assert.equal(stored.searchQuery, input.searchQuery);
     assert.equal(stored.primarySiteUrl, `${new URL(siteUrl).origin}/`);
     assert.equal(stored.competitorSiteUrl, `${new URL(siteUrl).origin}/`);
-    assert.equal(stored.maxPagesPerSite, input.maxPagesPerSite);
+    assert.equal(stored.crawlPagesPerSite, input.crawlPagesPerSite);
     assert.equal(stored.pages.length, 4);
     assert(stored.crawledPages >= stored.pages.length);
     assert(stored.pages.every((page) => page.embeddedAt instanceof Date));

@@ -18,11 +18,11 @@ export const analysisInputSchema = z.object({
     .max(500, "Запрос должен быть короче 500 символов"),
   primarySiteUrl: siteUrlSchema,
   competitorSiteUrl: siteUrlSchema,
-  maxPagesPerSite: z
+  crawlPagesPerSite: z
     .number()
     .int("Введите целое число")
-    .min(1, "Минимум 1 страница")
-    .max(30, "Максимум 30 страниц"),
+    .min(3, "Минимум 3 страницы")
+    .max(90, "Максимум 90 страниц"),
 });
 
 export const analysisReceiptSchema = z.object({

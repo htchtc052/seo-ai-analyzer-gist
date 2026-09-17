@@ -76,8 +76,8 @@ export function AnalysisPage() {
             </h1>
             <p className="text-sm text-muted-foreground">
               Домен {hostname(run.primarySiteUrl)} против домена{" "}
-              {hostname(run.competitorSiteUrl)} · до {run.maxPagesPerSite}{" "}
-              страниц с каждого
+              {hostname(run.competitorSiteUrl)} · обход до{" "}
+              {run.crawlPagesPerSite} страниц с каждого
             </p>
           </header>
           <AnalysisProgress run={run} />

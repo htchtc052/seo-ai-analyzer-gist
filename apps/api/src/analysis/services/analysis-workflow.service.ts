@@ -101,10 +101,10 @@ export class AnalysisWorkflowService {
     id: string,
     site: "primary" | "competitor",
     url: string,
-    input: { maxPagesPerSite: number; searchQuery: string },
+    input: { crawlPagesPerSite: number; searchQuery: string },
   ) {
     return this.crawler
-      .crawl(url, input.maxPagesPerSite, input.searchQuery, async () => {
+      .crawl(url, input.crawlPagesPerSite, input.searchQuery, async () => {
         await this.analyses.countCrawledPage(id);
       })
       .catch((error: Error) => {

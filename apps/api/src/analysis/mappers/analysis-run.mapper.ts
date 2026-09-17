@@ -62,7 +62,7 @@ export function toAnalysisRun(run: RunRecord): AnalysisRun {
     searchQuery: run.searchQuery,
     primarySiteUrl: run.primarySiteUrl,
     competitorSiteUrl: run.competitorSiteUrl,
-    maxPagesPerSite: run.maxPagesPerSite,
+    crawlPagesPerSite: run.crawlPagesPerSite,
     createdAt: run.createdAt.toISOString(),
   };
   const sources = toSources(run);

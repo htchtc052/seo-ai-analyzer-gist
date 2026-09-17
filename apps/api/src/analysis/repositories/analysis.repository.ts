@@ -62,7 +62,7 @@ export class AnalysisRepository {
         searchQuery: true,
         primarySiteUrl: true,
         competitorSiteUrl: true,
-        maxPagesPerSite: true,
+        crawlPagesPerSite: true,
       },
     });
   }

@@ -16,7 +16,7 @@ function run(competitorParagraphs: string[][]): CompletedAnalysis {
     searchQuery: "query",
     primarySiteUrl: "https://ours.test/",
     competitorSiteUrl: "https://rival.test/",
-    maxPagesPerSite: 10,
+    crawlPagesPerSite: 30,
     createdAt: "2026-01-01T00:00:00.000Z",
     status: "completed",
     sources: {
