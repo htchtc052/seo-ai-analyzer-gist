@@ -1,10 +1,4 @@
-import {
-  AnalysisStatus,
-  PageSource,
-  Prisma,
-  type AnalysisPage,
-  type Fragment,
-} from "@prisma/client";
+import { AnalysisStatus, PageSource, Prisma } from "@prisma/client";
 import type {
   AnalysisFailure,
   AnalysisRun,
@@ -19,7 +13,13 @@ export const runInclude = Prisma.validator<Prisma.AnalysisInclude>()({
     include: {
       fragments: {
         orderBy: [{ sectionIndex: "asc" }, { paragraphIndex: "asc" }],
-        include: {
+        select: {
+          sectionIndex: true,
+          paragraphIndex: true,
+          heading: true,
+          text: true,
+          relevance: true,
+          maxPrimarySimilarity: true,
           closestPrimaryFragment: {
             select: {
               sectionIndex: true,
@@ -42,6 +42,8 @@ export const summarySelect = Prisma.validator<Prisma.AnalysisSelect>()({
 });
 
 type RunRecord = Prisma.AnalysisGetPayload<{ include: typeof runInclude }>;
+type RunPage = RunRecord["pages"][number];
+type RunFragment = RunPage["fragments"][number];
 type SummaryRecord = Prisma.AnalysisGetPayload<{
   select: typeof summarySelect;
 }>;
@@ -167,7 +169,7 @@ function toSource(
   };
 }
 
-function toSections(fragments: Fragment[]) {
+function toSections(fragments: RunFragment[]) {
   const sections = new Map<
     number,
     { heading: string | null; paragraphs: string[] }
@@ -185,7 +187,7 @@ function toSections(fragments: Fragment[]) {
     .map(([, section]) => section);
 }
 
-function toRef(page: AnalysisPage, fragment: Fragment) {
+function toRef(page: RunPage, fragment: RunFragment) {
   return {
     pageIndex: page.position,
     sectionIndex: fragment.sectionIndex,
@@ -193,9 +195,7 @@ function toRef(page: AnalysisPage, fragment: Fragment) {
   };
 }
 
-function toClosestRef(
-  fragment: RunRecord["pages"][number]["fragments"][number],
-) {
+function toClosestRef(fragment: RunFragment) {
   const closest = fragment.closestPrimaryFragment!;
   return {
     pageIndex: closest.page.position,
