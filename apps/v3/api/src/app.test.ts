@@ -182,8 +182,11 @@ test("analysis boundary scores every named page", async () => {
       0,
       "our own page is never recommended",
     );
-    const scores = run!.selection as Record<string, number>;
-    assert(Number.isFinite(scores.objective));
+    assert.deepEqual(
+      recommended.map((item) => item.rank).toSorted(),
+      recommended.map((_, index) => index + 1),
+      "selected paragraphs are numbered without gaps",
+    );
   } finally {
     await app.close();
     await close(site);

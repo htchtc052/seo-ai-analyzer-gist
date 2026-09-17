@@ -97,11 +97,6 @@ export function toAnalysisRun(run: RunRecord): AnalysisRun {
     status: "completed",
     model: run.embeddingModel!,
     pages: toReportPages(run.pages),
-    selection: {
-      objective: run.selectionObjective!,
-      utility: run.selectionUtility!,
-      diversity: run.selectionDiversity!,
-    },
   };
 }
 
@@ -157,6 +152,7 @@ function toRecommendations(fragments: RunPage["fragments"]): Recommendation[] {
     .filter((fragment) => fragment.selectedRank !== null)
     .toSorted((left, right) => left.selectedRank! - right.selectedRank!)
     .map((fragment) => ({
+      rank: fragment.selectedRank! + 1,
       heading: fragment.heading,
       text: fragment.text,
     }));

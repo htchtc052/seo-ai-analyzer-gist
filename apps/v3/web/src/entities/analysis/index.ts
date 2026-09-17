@@ -11,7 +11,6 @@ export type {
   FailedAnalysis,
   Recommendation,
   ReportPage,
-  SelectionScores,
 } from "./model/analysis";
 export { analysisKeys } from "./model/query-keys";
 export { useAnalyses } from "./model/useAnalyses";

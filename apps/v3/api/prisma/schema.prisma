@@ -35,9 +35,6 @@ model Analysis {
   searchQuery    String
   status         AnalysisStatus @default(QUEUED)
   embeddingModel String?
-  selectionObjective Float?
-  selectionUtility   Float?
-  selectionDiversity Float?
   failureReason  FailureReason?
   failureUrl     String?
   failureDetail  String?

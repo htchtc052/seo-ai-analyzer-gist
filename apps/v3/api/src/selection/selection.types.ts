@@ -4,11 +4,6 @@ export type SelectionCandidate = {
   weight: number;
 };
 
-export type Selection = {
-  ids: string[];
-  objective: number;
-  utility: number;
-  diversity: number;
-};
+export type Selection = { ids: string[] };
 
 export class SelectionError extends Error {}

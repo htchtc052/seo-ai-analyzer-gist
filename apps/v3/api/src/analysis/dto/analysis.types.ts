@@ -30,14 +30,9 @@ export type ReportPage = { url: string; ours: boolean } & (
 );
 
 export type Recommendation = {
+  rank: number;
   heading: string | null;
   text: string;
-};
-
-export type SelectionScores = {
-  objective: number;
-  utility: number;
-  diversity: number;
 };
 
 type AnalysisBase = {
@@ -58,7 +53,6 @@ export type AnalysisRun =
       status: "completed";
       model: string;
       pages: ReportPage[];
-      selection: SelectionScores;
     })
   | (AnalysisBase & { status: "failed"; error: AnalysisFailure });
 

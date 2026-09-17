@@ -177,9 +177,6 @@ export class AnalysisRepository {
           status: AnalysisStatus.COMPLETED,
           embeddingModel: model,
           completedAt: new Date(),
-          selectionObjective: selection.objective,
-          selectionUtility: selection.utility,
-          selectionDiversity: selection.diversity,
         },
       }),
     ]);

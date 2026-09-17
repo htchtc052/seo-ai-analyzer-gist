@@ -11,12 +11,7 @@ const DIVERSITY_WEIGHT = 1;
 const SEED = 42;
 const TIMEOUT_MS = 30_000;
 
-type SelectResponse = {
-  indices: number[];
-  objective: number;
-  utility: number;
-  diversity: number;
-};
+type SelectResponse = { indices: number[] };
 
 @Injectable()
 export class SelectionClientService {
@@ -63,9 +58,6 @@ export class SelectionClientService {
           throw new SelectionError(`Selection index ${index} is out of range`);
         return candidate.id;
       }),
-      objective: body.objective,
-      utility: body.utility,
-      diversity: body.diversity,
     };
   }
 }
