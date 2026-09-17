@@ -1,4 +1,10 @@
-import { ChevronRight, ExternalLink } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronRight,
+  ExternalLink,
+} from "lucide-react";
 import { useState } from "react";
 import type {
   CompletedAnalysis,
@@ -19,8 +25,18 @@ import { cn } from "cn";
 import { ColumnHelp } from "./ColumnHelp";
 import { formatPercent, formatScore } from "./report-format";
 
+type SortKey = "relevance" | "novelty" | "priority";
+
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
   const [onlyPicked, setOnlyPicked] = useState(true);
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({
+    key: "priority",
+    desc: true,
+  });
+
+  function toggle(key: SortKey) {
+    setSort(sort.key === key ? { key, desc: !sort.desc } : { key, desc: true });
+  }
 
   const picked = run.pages.reduce(
     (total, page) =>
@@ -68,6 +84,11 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                   />
                 </TableHead>
                 <TableHead className="text-right">
+                  <SortHeader
+                    active={sort.key === "relevance"}
+                    desc={sort.desc}
+                    onClick={() => toggle("relevance")}
+                  />
                   <ColumnHelp
                     label="Релевантность"
                     reference="запросу"
@@ -76,6 +97,11 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                   />
                 </TableHead>
                 <TableHead className="text-right">
+                  <SortHeader
+                    active={sort.key === "novelty"}
+                    desc={sort.desc}
+                    onClick={() => toggle("novelty")}
+                  />
                   <ColumnHelp
                     label="Новизна"
                     reference="относительно нашей страницы"
@@ -84,6 +110,11 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                   />
                 </TableHead>
                 <TableHead className="text-right">
+                  <SortHeader
+                    active={sort.key === "priority"}
+                    desc={sort.desc}
+                    onClick={() => toggle("priority")}
+                  />
                   <ColumnHelp
                     label="Ценность"
                     formula="релевантность × новизна"
@@ -93,8 +124,13 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {run.pages.map((page) => (
-                <PageRows key={page.url} page={page} onlyPicked={onlyPicked} />
+              {sortPages(run.pages, sort).map((page) => (
+                <PageRows
+                  key={page.url}
+                  page={page}
+                  onlyPicked={onlyPicked}
+                  sort={sort}
+                />
               ))}
             </TableBody>
           </Table>
@@ -107,15 +143,21 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
 function PageRows({
   page,
   onlyPicked,
+  sort,
 }: {
   page: ReportPage;
   onlyPicked: boolean;
+  sort: { key: SortKey; desc: boolean };
 }) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
-  const shown = onlyPicked
-    ? page.fragments.filter((item) => item.recommended)
-    : page.fragments;
+  const shown = (
+    onlyPicked
+      ? page.fragments.filter((item) => item.recommended)
+      : page.fragments
+  ).toSorted((left, right) =>
+    compare(left[sort.key], right[sort.key], sort.desc),
+  );
 
   return (
     <>
@@ -163,7 +205,9 @@ function FragmentRow({ fragment }: { fragment: ReportFragment }) {
                 fragment.recommended ? "text-primary" : "opacity-40",
               )}
             />
-            {fragment.text}
+            <span className={cn(!fragment.recommended && "line-clamp-2")}>
+              {fragment.text}
+            </span>
           </span>
         </span>
       </TableCell>
@@ -183,6 +227,53 @@ function FragmentRow({ fragment }: { fragment: ReportFragment }) {
       </TableCell>
     </TableRow>
   );
+}
+
+function SortHeader({
+  active,
+  desc,
+  onClick,
+}: {
+  active: boolean;
+  desc: boolean;
+  onClick: () => void;
+}) {
+  const Icon = !active ? ArrowUpDown : desc ? ArrowDown : ArrowUp;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Сортировать"
+      className={cn(
+        "mr-1 align-middle",
+        active
+          ? "text-foreground"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+function sortPages(
+  pages: ReportPage[],
+  sort: { key: SortKey; desc: boolean },
+): ReportPage[] {
+  const scored = pages.filter((page) => page.status === "scored");
+  return [
+    ...scored.filter((page) => page.ours),
+    ...scored
+      .filter((page) => !page.ours)
+      .toSorted((left, right) =>
+        compare(left[sort.key] ?? 0, right[sort.key] ?? 0, sort.desc),
+      ),
+    ...pages.filter((page) => page.status === "failed"),
+  ];
+}
+
+function compare(left: number, right: number, desc: boolean): number {
+  return desc ? right - left : left - right;
 }
 
 function PageLink({
