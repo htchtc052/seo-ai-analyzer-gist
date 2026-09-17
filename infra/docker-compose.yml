@@ -3,7 +3,7 @@ name: seo-ai-analyzer
 # Версии инструмента живут на одном поддомене, каждая в своей папке:
 #   /v1  — первая попытка
 #   /v2  — версия с обходом сайта
-#   /    — страница со ссылками и robots.txt
+#   /    — оглавление и единственный robots.txt всего поддомена
 # Traefik срезает префикс, поэтому внутри контейнеров пути обычные.
 # Postgres и Redis стоят на самом хосте: их ставит infra/host-setup.sh,
 # и они переживают любые действия с контейнерами.
@@ -47,12 +47,10 @@ services:
       - traefik_acme:/letsencrypt
 
   landing:
-    image: nginx:1.29-alpine
-    restart: unless-stopped
-    volumes:
-      - ./landing/index.html:/usr/share/nginx/html/index.html:ro
-      - ./landing/robots.txt:/usr/share/nginx/html/robots.txt:ro
-      - ./landing/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    <<: *web
+    build:
+      context: ..
+      dockerfile: apps/landing/.docker/Dockerfile
     labels:
       - traefik.enable=true
       - traefik.http.routers.landing.rule=Host(`${APP_DOMAIN}`)
