@@ -2,9 +2,11 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Check,
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Info,
 } from "lucide-react";
 import { useState } from "react";
 import type {
@@ -21,7 +23,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
-import { TooltipProvider } from "@/shared/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
 import { cn } from "cn";
 import { ColumnHelp } from "./ColumnHelp";
 import { formatPercent, formatScore } from "./report-format";
@@ -155,6 +162,7 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
                   open={page.status === "scored" && !closed.has(page.url)}
                   onToggle={() => toggleOne(page.url)}
                   sort={sort}
+                  pickedTotal={picked}
                 />
               ))}
             </TableBody>
@@ -170,18 +178,23 @@ function PageRows({
   open,
   onToggle,
   sort,
+  pickedTotal,
 }: {
   page: ReportPage;
   open: boolean;
   onToggle: () => void;
   sort: { key: SortKey; desc: boolean };
+  pickedTotal: number;
 }) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
+  const byScore = (left: ReportFragment, right: ReportFragment) =>
+    compare(left[sort.key], right[sort.key], sort.desc);
   const shown = open
-    ? page.fragments.toSorted((left, right) =>
-        compare(left[sort.key], right[sort.key], sort.desc),
-      )
+    ? [
+        ...page.fragments.filter((item) => item.recommended).toSorted(byScore),
+        ...page.fragments.filter((item) => !item.recommended).toSorted(byScore),
+      ]
     : [];
 
   return (
@@ -203,37 +216,42 @@ function PageRows({
       </TableRow>
 
       {shown.map((item, index) => (
-        <FragmentRow key={index} fragment={item} />
+        <FragmentRow key={index} fragment={item} pickedTotal={pickedTotal} />
       ))}
     </>
   );
 }
 
-function FragmentRow({ fragment }: { fragment: ReportFragment }) {
+function FragmentRow({
+  fragment,
+  pickedTotal,
+}: {
+  fragment: ReportFragment;
+  pickedTotal: number;
+}) {
   return (
-    <TableRow
-      className={cn(
-        "text-muted-foreground",
-        fragment.recommended && "bg-primary/5 text-foreground",
-      )}
-    >
+    <TableRow className={cn(!fragment.recommended && "text-muted-foreground")}>
       <TableCell className="pl-10">
         <span className="grid max-w-2xl gap-0.5 whitespace-normal">
-          {fragment.heading && (
-            <span className="text-xs text-muted-foreground">
-              {fragment.heading}
-            </span>
-          )}
-          <span className="flex gap-2 text-sm">
-            <ChevronRight
+          <span className="text-xs text-muted-foreground">
+            {fragment.heading ?? "без заголовка"}
+          </span>
+          <span className="flex gap-2">
+            {fragment.recommended ? (
+              <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+            ) : (
+              <ChevronRight className="mt-0.5 size-3.5 shrink-0 opacity-40" />
+            )}
+            <span
               className={cn(
-                "mt-1 size-3.5 shrink-0",
-                fragment.recommended ? "text-primary" : "opacity-40",
+                fragment.recommended
+                  ? "text-sm leading-6 text-foreground"
+                  : "line-clamp-2 text-xs leading-5",
               )}
-            />
-            <span className={cn(!fragment.recommended && "line-clamp-2")}>
+            >
               {fragment.text}
             </span>
+            <FragmentHelp fragment={fragment} pickedTotal={pickedTotal} />
           </span>
         </span>
       </TableCell>
@@ -246,12 +264,48 @@ function FragmentRow({ fragment }: { fragment: ReportFragment }) {
       <TableCell
         className={cn(
           "text-right tabular-nums",
-          fragment.recommended && "font-medium",
+          fragment.recommended && "font-medium text-foreground",
         )}
       >
         {formatScore(fragment.priority)}
       </TableCell>
     </TableRow>
+  );
+}
+
+function FragmentHelp({
+  fragment,
+  pickedTotal,
+}: {
+  fragment: ReportFragment;
+  pickedTotal: number;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Почему абзац здесь"
+          className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+        >
+          <Info className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <span className="block font-semibold">
+          {fragment.recommended ? "Попал в отбор" : "В отбор не попал"}
+        </span>
+        <code className="mt-1.5 block text-[0.6875rem] leading-5">
+          ценность {formatScore(fragment.priority)} = релевантность{" "}
+          {formatScore(fragment.relevance)} × новизна{" "}
+          {formatPercent(fragment.novelty)}
+        </code>
+        <span className="mt-2 block">
+          Эту ценность мы передаём в GIST. Он отбирает по всему анализу{" "}
+          {pickedTotal} абзацев — ценных и не похожих друг на друга.
+        </span>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
