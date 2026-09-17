@@ -3,7 +3,7 @@ import type {
   AnalysisFailure,
   AnalysisRun,
   AnalysisSummary,
-  Recommendation,
+  ReportFragment,
   ReportPage,
 } from "../dto/analysis.types.js";
 
@@ -143,26 +143,25 @@ function toReportPage(page: RunPage): ReportPage {
     relevance,
     novelty,
     priority: novelty === null ? null : relevance * novelty,
-    recommendations: toRecommendations(page.fragments),
+    fragments: ours ? [] : toFragments(page.fragments),
   };
 }
 
-function toRecommendations(fragments: RunPage["fragments"]): Recommendation[] {
+function toFragments(fragments: RunPage["fragments"]): ReportFragment[] {
   return fragments
-    .filter((fragment) => fragment.selectedRank !== null)
-    .toSorted((left, right) => left.selectedRank! - right.selectedRank!)
     .map((fragment) => {
       const relevance = clamp(fragment.relevance ?? 0);
       const novelty = 1 - clamp(fragment.similarity ?? 0);
       return {
-        rank: fragment.selectedRank! + 1,
         heading: fragment.heading,
         text: fragment.text,
         relevance,
         novelty,
         priority: relevance * novelty,
+        recommended: fragment.selectedRank !== null,
       };
-    });
+    })
+    .toSorted((left, right) => right.priority - left.priority);
 }
 
 function toFailure(run: RunRecord): AnalysisFailure {

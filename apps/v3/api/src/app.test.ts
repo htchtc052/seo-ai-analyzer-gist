@@ -170,22 +170,20 @@ test("analysis boundary scores every named page", async () => {
       "rivals must be ordered by priority",
     );
 
-    const recommended = rivals.flatMap(
-      (page) => page.recommendations as Array<Record<string, unknown>>,
+    const fragments = rivals.flatMap(
+      (page) => page.fragments as Array<Record<string, unknown>>,
     );
-    assert(recommended.length > 0);
-    for (const item of recommended) {
+    assert(fragments.some((item) => item.recommended === true));
+    for (const item of fragments) {
       assert((item.text as string).length > 0);
+      assert(Number.isFinite(item.relevance as number));
+      assert(Number.isFinite(item.novelty as number));
+      assert(Number.isFinite(item.priority as number));
     }
-    assert.deepEqual(
-      (pages[0]!.recommendations as unknown[]).length,
+    assert.equal(
+      (pages[0]!.fragments as unknown[]).length,
       0,
-      "our own page is never recommended",
-    );
-    assert.deepEqual(
-      recommended.map((item) => item.rank).toSorted(),
-      recommended.map((_, index) => index + 1),
-      "selected paragraphs are numbered without gaps",
+      "our own page carries no fragments in the report",
     );
   } finally {
     await app.close();

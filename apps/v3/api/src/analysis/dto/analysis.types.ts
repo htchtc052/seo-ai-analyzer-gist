@@ -24,18 +24,18 @@ export type ReportPage = { url: string; ours: boolean } & (
       relevance: number;
       novelty: number | null;
       priority: number | null;
-      recommendations: Recommendation[];
+      fragments: ReportFragment[];
     }
   | { status: "failed"; reason: "unreachable" | "empty"; detail: string }
 );
 
-export type Recommendation = {
-  rank: number;
+export type ReportFragment = {
   heading: string | null;
   text: string;
   relevance: number;
   novelty: number;
   priority: number;
+  recommended: boolean;
 };
 
 type AnalysisBase = {

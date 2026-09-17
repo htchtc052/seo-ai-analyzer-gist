@@ -1,6 +1,10 @@
-import { ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import type { CompletedAnalysis, ReportPage } from "@/entities/analysis";
+import type {
+  CompletedAnalysis,
+  ReportFragment,
+  ReportPage,
+} from "@/entities/analysis";
 import { Button } from "@/shared/ui/button";
 import {
   Table,
@@ -11,130 +15,174 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { cn } from "cn";
 import { ColumnHelp } from "./ColumnHelp";
-import { FragmentDialog, type DialogSubject } from "./FragmentDialog";
-import { SelectedFragments } from "./SelectedFragments";
 import { formatPercent, formatScore } from "./report-format";
 
 export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
-  const [subject, setSubject] = useState<DialogSubject | null>(null);
+  const [onlyPicked, setOnlyPicked] = useState(true);
+
+  const picked = run.pages.reduce(
+    (total, page) =>
+      page.status === "scored"
+        ? total + page.fragments.filter((item) => item.recommended).length
+        : total,
+    0,
+  );
   const poolSize = run.pages.reduce(
     (total, page) =>
-      page.status === "scored" && !page.ours
-        ? total + page.fragmentCount
-        : total,
+      page.status === "scored" ? total + page.fragments.length : total,
     0,
   );
 
   return (
     <TooltipProvider>
-      <div className="grid gap-8">
-        <SelectedFragments run={run} poolSize={poolSize} onOpen={setSubject} />
-
-        <section className="grid gap-3">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="font-semibold">Страницы</h2>
+      <section className="grid gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <h2 className="font-semibold">Что добавить</h2>
+          <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
               модель {run.model}
             </span>
+            <Button
+              variant="outline"
+              onClick={() => setOnlyPicked(!onlyPicked)}
+              aria-pressed={onlyPicked}
+            >
+              {onlyPicked
+                ? `Показать все ${poolSize} абзацев`
+                : `Только рекомендованные (${picked})`}
+            </Button>
           </div>
+        </div>
 
-          <div className="overflow-x-auto rounded-xl border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Страница</TableHead>
-                  <TableHead className="text-right">
-                    <ColumnHelp
-                      label="Релевантность"
-                      reference="страницы запросу"
-                      formula="среднее cos(запрос, абзац) по абзацам страницы"
-                      note="Насколько страница вообще про запрос. Величина абсолютная: её диапазоны задаёт модель, поэтому она сравнима между запусками. Около 0.25 — уровень текста, не связанного с запросом."
-                    />
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <ColumnHelp
-                      label="Новизна"
-                      reference="страницы относительно нашей"
-                      formula="Σ(релевантность × новизна абзаца) ÷ Σ релевантность"
-                      note="Какая доля релевантного содержания страницы не похожа на нашу. Новизна абзаца — это 1 минус наибольший cos до абзацев нашей страницы, поэтому величина относительна и зависит от того, что написано именно у нас. Короткий абзац почти всегда выглядит новее длинного: совпасть ему не с чем."
-                    />
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <ColumnHelp
-                      label="Вклад"
-                      formula="сколько абзацев этой страницы попало в отбор"
-                      note="Отбор идёт сразу по абзацам всех конкурентов и отбрасывает те, что повторяют уже взятое. Поэтому прочерк не значит, что страница плохая: её сильные абзацы говорят о том же, что нашлось у другой."
-                    />
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {run.pages.map((page) => (
-                  <Row key={page.url} page={page} onOpen={setSubject} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
-
-        <FragmentDialog subject={subject} onClose={() => setSubject(null)} />
-      </div>
+        <div className="overflow-x-auto rounded-xl border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <ColumnHelp
+                    label="Страница и абзацы"
+                    formula={`GIST выбрал ${picked} абзацев из ${poolSize}`}
+                    note="Отбор идёт сразу по абзацам всех конкурентов, а не по страницам: берутся ценные и при этом не повторяющие друг друга. Поэтому у страницы может не оказаться ни одного выбранного абзаца, даже если она выше по релевантности — значит её сильные абзацы говорят о том же, что уже взято у другой."
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <ColumnHelp
+                    label="Релевантность"
+                    reference="запросу"
+                    formula="у абзаца — cos(запрос, абзац); у страницы — среднее по её абзацам"
+                    note="Насколько текст про запрос. Величина абсолютная: её диапазоны задаёт модель, поэтому она сравнима между запусками. Около 0.25 — уровень текста, не связанного с запросом."
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <ColumnHelp
+                    label="Новизна"
+                    reference="относительно нашей страницы"
+                    formula="у абзаца — 1 − наибольший cos до наших абзацев; у страницы — среднее, взвешенное релевантностью"
+                    note="Какой доле текста нечего противопоставить у нас. Величина относительна: зависит от того, что написано именно у нас. Короткий абзац почти всегда выглядит новее длинного — совпасть ему не с чем."
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <ColumnHelp
+                    label="Ценность"
+                    formula="релевантность × новизна"
+                    note="Ценность абзаца — это число мы передаём в GIST как вес при отборе. Ценность страницы — среднее ценностей её абзацев, то есть её приоритет как источника."
+                  />
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {run.pages.map((page) => (
+                <PageRows key={page.url} page={page} onlyPicked={onlyPicked} />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
     </TooltipProvider>
   );
 }
 
-function Row({
+function PageRows({
   page,
-  onOpen,
+  onlyPicked,
 }: {
   page: ReportPage;
-  onOpen: (subject: DialogSubject) => void;
+  onlyPicked: boolean;
 }) {
   if (page.status === "failed") return <FailedRow page={page} />;
 
+  const shown = onlyPicked
+    ? page.fragments.filter((item) => item.recommended)
+    : page.fragments;
+
   return (
-    <TableRow className={page.ours ? "bg-muted/40" : undefined}>
-      <TableCell>
-        <PageLink page={page} />
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatScore(page.relevance)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
-      </TableCell>
-      <TableCell className="text-right">
-        {page.recommendations.length === 0 ? (
-          <Dash />
-        ) : (
-          <Button
-            variant="outline"
-            className="tabular-nums"
-            onClick={() =>
-              onOpen({
-                title: page.title,
-                url: page.url,
-                fragments: page.recommendations,
-              })
-            }
-          >
-            {toLabel(page)}
-          </Button>
-        )}
-      </TableCell>
-    </TableRow>
+    <>
+      <TableRow className={page.ours ? "bg-muted/40" : undefined}>
+        <TableCell>
+          <PageLink page={page} />
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {formatScore(page.relevance)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {page.novelty === null ? <Dash /> : formatPercent(page.novelty)}
+        </TableCell>
+        <TableCell className="text-right font-medium tabular-nums">
+          {page.priority === null ? <Dash /> : formatScore(page.priority)}
+        </TableCell>
+      </TableRow>
+
+      {shown.map((item, index) => (
+        <FragmentRow key={index} fragment={item} />
+      ))}
+    </>
   );
 }
 
-function toLabel(page: Extract<ReportPage, { status: "scored" }>): string {
-  const count = page.recommendations.length;
-  const last = count % 10;
-  const tens = count % 100;
-  if (tens >= 11 && tens <= 14) return `${count} абзацев`;
-  if (last === 1) return `${count} абзац`;
-  if (last >= 2 && last <= 4) return `${count} абзаца`;
-  return `${count} абзацев`;
+function FragmentRow({ fragment }: { fragment: ReportFragment }) {
+  return (
+    <TableRow
+      className={cn(
+        "text-muted-foreground",
+        fragment.recommended && "bg-primary/5 text-foreground",
+      )}
+    >
+      <TableCell className="pl-10">
+        <span className="grid max-w-2xl gap-0.5 whitespace-normal">
+          {fragment.heading && (
+            <span className="text-xs text-muted-foreground">
+              {fragment.heading}
+            </span>
+          )}
+          <span className="flex gap-2 text-sm">
+            <ChevronRight
+              className={cn(
+                "mt-1 size-3.5 shrink-0",
+                fragment.recommended ? "text-primary" : "opacity-40",
+              )}
+            />
+            {fragment.text}
+          </span>
+        </span>
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatScore(fragment.relevance)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatPercent(fragment.novelty)}
+      </TableCell>
+      <TableCell
+        className={cn(
+          "text-right tabular-nums",
+          fragment.recommended && "font-medium",
+        )}
+      >
+        {formatScore(fragment.priority)}
+      </TableCell>
+    </TableRow>
+  );
 }
 
 function PageLink({

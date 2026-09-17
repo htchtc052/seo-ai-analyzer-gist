@@ -9,7 +9,7 @@ export type {
   AnalysisSummary,
   CompletedAnalysis,
   FailedAnalysis,
-  Recommendation,
+  ReportFragment,
   ReportPage,
 } from "./model/analysis";
 export { analysisKeys } from "./model/query-keys";
