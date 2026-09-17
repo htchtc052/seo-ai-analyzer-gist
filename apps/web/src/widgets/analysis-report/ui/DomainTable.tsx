@@ -24,6 +24,7 @@ export function DomainTable({ domains }: { domains: AnalysisDomainRow[] }) {
               <TableHead className="text-right">
                 <ColumnHelp
                   label="Новизна"
+                  reference="домена относительно нашего"
                   formula="Σ(релевантность × (1 − сходство)) ÷ Σ(релевантность) по всем фрагментам домена"
                   note="Относительная величина: сходство считается до ближайшего фрагмента вашего домена, поэтому число зависит от того, что обход нашёл у вас. Покрытие = 100% − новизна."
                 />
@@ -31,6 +32,7 @@ export function DomainTable({ domains }: { domains: AnalysisDomainRow[] }) {
               <TableHead className="text-right">
                 <ColumnHelp
                   label="Релевантность"
+                  reference="домена к запросу"
                   formula="среднее cos(эмбеддинг запроса, эмбеддинг фрагмента) по всем фрагментам домена"
                   note="Абсолютная величина: не зависит от второго домена и сравнима между прогонами. Ниже 0.25 — уровень несвязанного с запросом текста."
                 />

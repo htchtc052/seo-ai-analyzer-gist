@@ -70,7 +70,7 @@ const columns = columnHelper.columns([
         label="Приоритет"
         column={column}
         formula="релевантность × новизна"
-        note="Порядок чтения таблицы. Относительная величина: новизна зависит от того, что обход нашёл у вас. Процент выбран как признак относительности, долей чего-либо приоритет не является."
+        note="Порядок чтения таблицы. Своего эталона не имеет: относительность наследует от новизны. Процент здесь — признак относительности, долей чего-либо приоритет не является."
       />
     ),
     sortUndefined: "last",
@@ -80,9 +80,10 @@ const columns = columnHelper.columns([
     header: ({ column }) => (
       <SortHeader
         label="Новизна"
+        reference="страницы относительно нашего домена"
         column={column}
-        formula="Σ(релевантность × (1 − сходство)) ÷ Σ(релевантность)"
-        note="Какая доля релевантного содержания страницы не похожа на ваш домен. Сходство — наибольший cos до фрагментов вашего домена, поэтому величина относительна. Покрытие = 100% − новизна."
+        formula="Σ(релевантность × (1 − сходство)) ÷ Σ(релевантность) по фрагментам страницы"
+        note="Какая доля релевантного содержания страницы не похожа на ваш домен. Сходство — наибольший cos до фрагментов вашего домена, поэтому число меняется вместе с тем, что обход нашёл у вас. Покрытие = 100% − новизна."
       />
     ),
     sortUndefined: "last",
@@ -92,8 +93,9 @@ const columns = columnHelper.columns([
     header: ({ column }) => (
       <SortHeader
         label="Релевантность"
+        reference="страницы к запросу"
         column={column}
-        formula="среднее cos(эмбеддинг запроса, эмбеддинг фрагмента)"
+        formula="среднее cos(эмбеддинг запроса, эмбеддинг фрагмента) по фрагментам страницы"
         note="Абсолютная величина: не зависит от второго домена и сравнима между прогонами, поэтому порог стоит именно на ней. Косинус — близость векторов, а не доля, и процентом не показывается."
       />
     ),
@@ -103,6 +105,7 @@ const columns = columnHelper.columns([
     header: ({ column }) => (
       <SortHeader
         label="Лучший фрагмент"
+        reference="фрагмента относительно нашего домена"
         column={column}
         formula="max(релевантность × (1 − сходство)) по фрагментам страницы"
         note="Ловит одну ценную врезку на в остальном посредственной странице — среднее её размывает."
@@ -252,11 +255,13 @@ function Cosine({ value }: { value: number | undefined }) {
 
 function SortHeader({
   label,
+  reference,
   column,
   formula,
   note,
 }: {
   label: string;
+  reference?: string;
   column: {
     getIsSorted: () => false | "asc" | "desc";
     toggleSorting: () => void;
@@ -279,7 +284,12 @@ function SortHeader({
         className="inline-flex items-center gap-1 hover:text-foreground"
       >
         {formula && note ? (
-          <ColumnHelp label={label} formula={formula} note={note} />
+          <ColumnHelp
+            label={label}
+            reference={reference}
+            formula={formula}
+            note={note}
+          />
         ) : (
           label
         )}
