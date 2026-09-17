@@ -33,11 +33,7 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
     () =>
       new Set(
         run.pages
-          .filter(
-            (page) =>
-              page.status === "scored" &&
-              !page.fragments.some((item) => item.recommended),
-          )
+          .filter((page) => page.status === "scored")
           .map((page) => page.url),
       ),
   );
@@ -273,20 +269,20 @@ function PageSummary({
   const picked = page.fragments.filter((item) => item.recommended).length;
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       onClick={onToggle}
       aria-expanded={open}
-      className="mt-1.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      className="mt-2 h-8 px-2.5 text-xs font-normal"
     >
       <ChevronDown
-        className={cn("size-3.5 transition-transform", open && "rotate-180")}
+        className={cn("transition-transform", open && "rotate-180")}
       />
       {plural(page.fragments.length, "абзац", "абзаца", "абзацев")}
       {picked > 0
         ? ` · ${plural(picked, "рекомендован", "рекомендовано", "рекомендовано")}`
         : " · ни один не выбран"}
-    </button>
+    </Button>
   );
 }
 
