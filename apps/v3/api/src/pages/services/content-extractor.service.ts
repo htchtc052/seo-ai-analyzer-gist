@@ -8,21 +8,34 @@ import type {
 } from "../pages.types.js";
 
 const TEXT_BLOCKS = "h2, h3, p, li, blockquote, pre, div";
+const CHROME_BLOCKS = "script, style, nav, header, footer, aside, form";
 const MIN_PARAGRAPH_LENGTH = 40;
+const MAX_PARAGRAPH_LENGTH = 800;
+const MIN_ARTICLE_SHARE_OF_DOCUMENT = 0.5;
 
 @Injectable()
 export class ContentExtractorService {
   extract(html: string): ExtractedPage {
     const { document } = parseHTML(html);
     const publishedAt = toPublishedAt(document);
-    const parsed = new Readability(document).parse();
-    if (!parsed?.content) return { article: null };
+    const documentTitle = normalize(document.title ?? "");
+
+    const article = new Readability(parseHTML(html).document).parse();
+    const fromArticle = article?.content ? toSections(article.content) : [];
+    const fromDocument = toSections(toStrippedBody(document));
+
+    const sections =
+      textLength(fromArticle) >=
+      textLength(fromDocument) * MIN_ARTICLE_SHARE_OF_DOCUMENT
+        ? fromArticle
+        : fromDocument;
+    if (sections.length === 0) return { article: null };
 
     return {
       article: {
-        title: normalize(parsed.title ?? ""),
+        title: normalize(article?.title ?? "") || documentTitle,
         publishedAt,
-        sections: toSections(parsed.content),
+        sections,
       },
     };
   }
@@ -116,7 +129,7 @@ function toSections(html: string): ExtractedSection[] {
       current = { heading: null, paragraphs: [] };
       sections.push(current);
     }
-    current.paragraphs.push(text);
+    current.paragraphs.push(...toParagraphs(text));
   }
 
   return sections.filter((section) => section.paragraphs.length > 0);
@@ -124,4 +137,38 @@ function toSections(html: string): ExtractedSection[] {
 
 function normalize(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+function toStrippedBody(document: Document): string {
+  for (const node of document.querySelectorAll(CHROME_BLOCKS)) node.remove();
+  return document.body?.innerHTML ?? "";
+}
+
+function textLength(sections: ExtractedSection[]): number {
+  return sections.reduce(
+    (total, section) =>
+      total +
+      section.paragraphs.reduce(
+        (length, paragraph) => length + paragraph.length,
+        0,
+      ),
+    0,
+  );
+}
+
+function toParagraphs(text: string): string[] {
+  if (text.length <= MAX_PARAGRAPH_LENGTH) return [text];
+
+  const parts: string[] = [];
+  let current = "";
+  for (const sentence of text.split(/(?<=[.!?\u2026])\s+/)) {
+    if (current && current.length + sentence.length > MAX_PARAGRAPH_LENGTH) {
+      parts.push(current);
+      current = sentence;
+      continue;
+    }
+    current = current ? `${current} ${sentence}` : sentence;
+  }
+  if (current) parts.push(current);
+  return parts;
 }

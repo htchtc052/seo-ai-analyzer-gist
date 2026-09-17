@@ -14,6 +14,8 @@ export const runInclude = Prisma.validator<Prisma.AnalysisInclude>()({
       url: true,
       title: true,
       embeddedAt: true,
+      failureReason: true,
+      failureDetail: true,
       fragments: { select: { relevance: true, similarity: true } },
     },
   },
@@ -66,7 +68,8 @@ export function toAnalysisRun(run: RunRecord): AnalysisRun {
       ...base,
       status: "running",
       progress: {
-        done: run.pages.filter((page) => page.embeddedAt).length,
+        done: run.pages.filter((page) => page.embeddedAt ?? page.failureReason)
+          .length,
         total: run.pages.length,
       },
     };
@@ -80,36 +83,49 @@ export function toAnalysisRun(run: RunRecord): AnalysisRun {
 }
 
 function toReportPages(pages: RunPage[]): ReportPage[] {
-  const rows = pages.map((page) => {
-    const scores = page.fragments.map((fragment) => ({
-      relevance: clamp(fragment.relevance ?? 0),
-      similarity: clamp(fragment.similarity ?? 0),
-    }));
-    const ours = page.source === PageSource.PRIMARY;
-    const weight = total(scores.map((score) => score.relevance));
-    const novelty =
-      ours || weight === 0
-        ? null
-        : total(scores.map((s) => s.relevance * (1 - s.similarity))) / weight;
-    const relevance = weight / scores.length;
-
-    return {
-      url: page.url,
-      title: page.title!,
-      ours,
-      fragmentCount: scores.length,
-      relevance,
-      novelty,
-      priority: novelty === null ? null : relevance * novelty,
-    };
-  });
-
+  const rows = pages.map(toReportPage);
+  const scored = rows.filter((row) => row.status === "scored");
   return [
-    ...rows.filter((row) => row.ours),
-    ...rows
+    ...scored.filter((row) => row.ours),
+    ...scored
       .filter((row) => !row.ours)
       .toSorted((left, right) => (right.priority ?? 0) - (left.priority ?? 0)),
+    ...rows.filter((row) => row.status === "failed"),
   ];
+}
+
+function toReportPage(page: RunPage): ReportPage {
+  const ours = page.source === PageSource.PRIMARY;
+  if (page.failureReason)
+    return {
+      url: page.url,
+      ours,
+      status: "failed",
+      reason: page.failureReason.toLowerCase() as "unreachable" | "empty",
+      detail: page.failureDetail!,
+    };
+
+  const scores = page.fragments.map((fragment) => ({
+    relevance: clamp(fragment.relevance ?? 0),
+    similarity: clamp(fragment.similarity ?? 0),
+  }));
+  const weight = total(scores.map((score) => score.relevance));
+  const novelty =
+    ours || weight === 0
+      ? null
+      : total(scores.map((s) => s.relevance * (1 - s.similarity))) / weight;
+  const relevance = weight / scores.length;
+
+  return {
+    url: page.url,
+    ours,
+    status: "scored",
+    title: page.title!,
+    fragmentCount: scores.length,
+    relevance,
+    novelty,
+    priority: novelty === null ? null : relevance * novelty,
+  };
 }
 
 function toFailure(run: RunRecord): AnalysisFailure {

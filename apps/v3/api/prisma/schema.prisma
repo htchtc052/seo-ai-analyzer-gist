@@ -51,10 +51,12 @@ model AnalysisPage {
   analysisId String
   source     PageSource
   position   Int
-  url        String
-  title      String?
-  embeddedAt DateTime?
-  analysis   Analysis   @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  url           String
+  title         String?
+  embeddedAt    DateTime?
+  failureReason FailureReason?
+  failureDetail String?
+  analysis      Analysis       @relation(fields: [analysisId], references: [id], onDelete: Cascade)
   fragments  Fragment[]
 
   @@unique([analysisId, source, position])

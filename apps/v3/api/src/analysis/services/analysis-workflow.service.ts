@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { FailureReason } from "@prisma/client";
+import { FailureReason, PageSource } from "@prisma/client";
 import { EmptyPageError, PageLoadError } from "../../pages/pages.types.js";
 import { ContentExtractorService } from "../../pages/services/content-extractor.service.js";
 import { PageClientService } from "../../pages/services/page-client.service.js";
@@ -28,29 +28,33 @@ export class AnalysisWorkflowService {
     if (page.embeddedAt)
       return (await this.analyses.countPendingPages(analysisId)) === 0;
 
-    const { html } = await this.client.load(page.url);
-    const { article } = this.extractor.extract(html);
-    if (!article)
-      throw new EmptyPageError("Found no readable article text", page.url);
+    try {
+      const { html } = await this.client.load(page.url);
+      const { article } = this.extractor.extract(html);
+      if (!article)
+        throw new EmptyPageError("Found no readable article text", page.url);
 
-    const fragments = toFragments(article.sections);
-    if (fragments.length === 0)
-      throw new EmptyPageError("Article has no usable paragraphs", page.url);
+      const fragments = toFragments(article.sections);
+      if (fragments.length === 0)
+        throw new EmptyPageError("Article has no usable paragraphs", page.url);
 
-    const embedded = await this.semantics.embedPage(
-      page.analysis.searchQuery,
-      fragments,
-    );
-    const remaining = await this.analyses.savePage(
-      pageId,
-      article.title,
-      embedded,
-    );
-    return remaining === 0;
+      const embedded = await this.semantics.embedPage(
+        page.analysis.searchQuery,
+        fragments,
+      );
+      return (
+        (await this.analyses.savePage(pageId, article.title, embedded)) === 0
+      );
+    } catch (error) {
+      if (page.source === PageSource.PRIMARY || !isPageFailure(error))
+        throw error;
+      return (await this.analyses.failPage(pageId, toFailure(error))) === 0;
+    }
   }
 
   async finalize(id: string): Promise<void> {
     const { ours, theirs } = await this.analyses.findVectors(id);
+    if (theirs.length === 0) throw new Error("Every competitor page failed");
     const similarities = this.semantics.similarities(ours, theirs);
     await this.analyses.complete(id, this.semantics.model, similarities);
   }
@@ -71,6 +75,12 @@ function toFragments(
       text,
     })),
   );
+}
+
+function isPageFailure(
+  error: unknown,
+): error is EmptyPageError | PageLoadError {
+  return error instanceof EmptyPageError || error instanceof PageLoadError;
 }
 
 function toFailure(error: Error) {

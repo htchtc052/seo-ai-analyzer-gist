@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useAnalyses } from "@/entities/analysis";
+import { DeleteAnalysisButton } from "@/features/delete-analysis";
 import { AnalysisForm, useStartAnalysis } from "@/features/start-analysis";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 
@@ -38,8 +39,14 @@ export function AnalysesPage() {
           )}
           <ul className="grid gap-3">
             {analyses.data?.map((run) => (
-              <li key={run.id} className="border-b pb-3 last:border-0">
-                <Link to={`/analyses/${run.id}`} className="group grid gap-0.5">
+              <li
+                key={run.id}
+                className="flex items-start justify-between gap-2 border-b pb-3 last:border-0"
+              >
+                <Link
+                  to={`/analyses/${run.id}`}
+                  className="group grid flex-1 gap-0.5"
+                >
                   <span className="font-medium group-hover:text-primary">
                     {run.searchQuery}
                   </span>
@@ -48,6 +55,10 @@ export function AnalysesPage() {
                     {new Date(run.createdAt).toLocaleString("ru-RU")}
                   </span>
                 </Link>
+                <DeleteAnalysisButton
+                  id={run.id}
+                  searchQuery={run.searchQuery}
+                />
               </li>
             ))}
           </ul>

@@ -5,6 +5,7 @@ import {
   AnalysisProgress,
   useAnalysis,
 } from "@/entities/analysis";
+import { DeleteAnalysisButton } from "@/features/delete-analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { AnalysisReport } from "@/widgets/analysis-report";
 
@@ -23,12 +24,15 @@ export function AnalysisPage() {
 
   return (
     <div className="grid gap-6">
-      <header className="grid gap-1">
-        <h1 className="text-xl font-semibold">{run.searchQuery}</h1>
-        <p className="text-sm text-muted-foreground">
-          наша страница {run.primaryUrl} · конкурентов{" "}
-          {run.competitorUrls.length}
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="grid gap-1">
+          <h1 className="text-xl font-semibold">{run.searchQuery}</h1>
+          <p className="text-sm text-muted-foreground">
+            наша страница {run.primaryUrl} · конкурентов{" "}
+            {run.competitorUrls.length}
+          </p>
+        </div>
+        <DeleteAnalysisButton id={run.id} searchQuery={run.searchQuery} />
       </header>
 
       <AnalysisProgress run={run} />

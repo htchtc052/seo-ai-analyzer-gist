@@ -22,7 +22,7 @@ export class PageClientService {
 
     return {
       url: response.url,
-      html: await readBody(response, url, MAX_PAGE_BYTES),
+      html: await readBody(response, url, MAX_PAGE_BYTES, contentType),
     };
   }
 
@@ -45,6 +45,7 @@ async function readBody(
   response: Response,
   url: string,
   maxBytes: number,
+  contentType: string,
 ): Promise<string> {
   if (Number(response.headers.get("content-length")) > maxBytes) {
     throw new PageLoadError(`Answered with more than ${maxBytes} bytes`, url);
@@ -52,7 +53,7 @@ async function readBody(
   if (!response.body) return "";
 
   const reader = response.body.getReader();
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder(toCharset(contentType, url));
   let body = "";
   let bytes = 0;
 
@@ -76,4 +77,14 @@ function loadFailed(error: Error, url: string): never {
   const cause =
     error.cause instanceof Error ? error.cause.message : error.message;
   throw new PageLoadError(cause, url);
+}
+
+function toCharset(contentType: string, url: string): string {
+  const declared = /charset=\s*"?([\w-]+)/i.exec(contentType)?.[1];
+  if (!declared) return "utf-8";
+  try {
+    return new TextDecoder(declared).encoding;
+  } catch {
+    throw new PageLoadError(`Answered in unsupported charset ${declared}`, url);
+  }
 }

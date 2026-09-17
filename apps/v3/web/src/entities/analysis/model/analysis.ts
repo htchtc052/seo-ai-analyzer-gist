@@ -38,15 +38,17 @@ export type AnalysisFailure = {
   detail: string | null;
 };
 
-export type ReportPage = {
-  url: string;
-  title: string;
-  ours: boolean;
-  fragmentCount: number;
-  relevance: number;
-  novelty: number | null;
-  priority: number | null;
-};
+export type ReportPage = { url: string; ours: boolean } & (
+  | {
+      status: "scored";
+      title: string;
+      fragmentCount: number;
+      relevance: number;
+      novelty: number | null;
+      priority: number | null;
+    }
+  | { status: "failed"; reason: "unreachable" | "empty"; detail: string }
+);
 
 type AnalysisBase = {
   id: string;

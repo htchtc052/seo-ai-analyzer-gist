@@ -60,6 +60,11 @@ test("health boundary", async () => {
 test("analysis boundary scores every named page", async () => {
   const site = createServer((request, response) => {
     const path = new URL(request.url!, "http://site.test").pathname;
+    if (path === "/broken") {
+      response.statusCode = 503;
+      response.end();
+      return;
+    }
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.end(`<!doctype html>
       <html><head><title>Rugs at ${path}</title></head><body><main><article>
@@ -145,6 +150,109 @@ test("analysis boundary scores every named page", async () => {
     assert(
       (rivals[0]!.priority as number) >= (rivals[1]!.priority as number),
       "rivals must be ordered by priority",
+    );
+  } finally {
+    await app.close();
+    await close(site);
+  }
+});
+
+test("analysis boundary keeps going when one rival page is unreachable", async () => {
+  const site = createServer((request, response) => {
+    const path = new URL(request.url!, "http://site.test").pathname;
+    if (path === "/broken") {
+      response.statusCode = 503;
+      response.end();
+      return;
+    }
+    response.setHeader("Content-Type", "text/html; charset=utf-8");
+    response.end(`<!doctype html>
+      <html><head><title>Rugs at ${path}</title></head><body><main><article>
+        <h1>Handmade rugs</h1>
+        <p>${`A guide to handmade wool rugs at ${path}, with materials, care, sizing and delivery. `.repeat(8)}</p>
+      </article></main></body></html>`);
+  });
+  await listen(site);
+
+  const app = await createApplication();
+  await app.listen(0, "127.0.0.1");
+  const endpoint = `${await app.getUrl()}/api/analyses`;
+
+  try {
+    const created = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        searchQuery: SEARCH_QUERY,
+        primaryUrl: `${origin(site)}/ours`,
+        competitorUrls: [`${origin(site)}/broken`, `${origin(site)}/alive`],
+      }),
+    });
+    const { id } = (await created.json()) as { id: string };
+
+    let run: Record<string, unknown> | undefined;
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const status = await fetch(`${endpoint}/${id}`);
+      run = (await status.json()) as Record<string, unknown>;
+      if (run.status === "completed" || run.status === "failed") break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(run?.status, "completed", JSON.stringify(run));
+
+    const pages = run!.pages as Array<Record<string, unknown>>;
+    assert.equal(pages.length, 3);
+    const broken = pages.find((page) =>
+      (page.url as string).endsWith("/broken"),
+    );
+    assert.equal(broken?.status, "failed");
+    assert.equal(broken?.reason, "unreachable");
+    assert.match(broken?.detail as string, /503/);
+    assert.equal(pages.at(-1)?.url, `${origin(site)}/broken`);
+    assert.equal(
+      pages.filter((page) => page.status === "scored").length,
+      2,
+      "our page and the reachable rival must still be scored",
+    );
+  } finally {
+    await app.close();
+    await close(site);
+  }
+});
+
+test("analysis boundary fails when our own page is unreachable", async () => {
+  const site = createServer((request, response) => {
+    response.statusCode = 503;
+    response.end();
+  });
+  await listen(site);
+
+  const app = await createApplication();
+  await app.listen(0, "127.0.0.1");
+  const endpoint = `${await app.getUrl()}/api/analyses`;
+
+  try {
+    const created = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        searchQuery: SEARCH_QUERY,
+        primaryUrl: `${origin(site)}/ours`,
+        competitorUrls: [`${origin(site)}/rival`],
+      }),
+    });
+    const { id } = (await created.json()) as { id: string };
+
+    let run: Record<string, unknown> | undefined;
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const status = await fetch(`${endpoint}/${id}`);
+      run = (await status.json()) as Record<string, unknown>;
+      if (run.status === "completed" || run.status === "failed") break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(run?.status, "failed", JSON.stringify(run));
+    assert.equal(
+      (run!.error as Record<string, unknown>).url,
+      `${origin(site)}/ours`,
     );
   } finally {
     await app.close();

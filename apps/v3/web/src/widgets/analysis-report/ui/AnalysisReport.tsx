@@ -74,6 +74,8 @@ export function AnalysisReport({ run }: { run: CompletedAnalysis }) {
 }
 
 function Row({ page }: { page: ReportPage }) {
+  if (page.status === "failed") return <FailedRow page={page} />;
+
   return (
     <TableRow className={page.ours ? "bg-muted/40" : undefined}>
       <TableCell>
@@ -106,6 +108,39 @@ function Row({ page }: { page: ReportPage }) {
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {page.fragmentCount}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function FailedRow({
+  page,
+}: {
+  page: Extract<ReportPage, { status: "failed" }>;
+}) {
+  return (
+    <TableRow className="text-muted-foreground">
+      <TableCell>
+        <a
+          href={page.url}
+          target="_blank"
+          rel="noreferrer"
+          className="group grid max-w-xl gap-1 whitespace-normal"
+        >
+          <span className="text-xs">
+            {page.ours ? "наша страница" : "конкурент"} · не прочитана
+          </span>
+          <span className="flex items-start gap-2 truncate text-xs group-hover:text-primary">
+            {page.url}
+            <ExternalLink className="mt-0.5 size-3.5 shrink-0" />
+          </span>
+        </a>
+      </TableCell>
+      <TableCell colSpan={4} className="text-sm">
+        {page.reason === "empty"
+          ? "Читаемого текста статьи не нашлось"
+          : "Страница не открылась"}
+        <span className="block text-xs">{page.detail}</span>
       </TableCell>
     </TableRow>
   );

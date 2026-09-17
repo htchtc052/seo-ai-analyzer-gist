@@ -78,9 +78,10 @@ export class AnalysisRepository {
       select: {
         id: true,
         url: true,
+        source: true,
         analysisId: true,
         embeddedAt: true,
-        analysis: { select: { searchQuery: true, status: true } },
+        analysis: { select: { searchQuery: true } },
       },
     });
   }
@@ -114,8 +115,20 @@ export class AnalysisRepository {
 
   countPendingPages(analysisId: string): Promise<number> {
     return this.prisma.analysisPage.count({
-      where: { analysisId, embeddedAt: null },
+      where: { analysisId, embeddedAt: null, failureReason: null },
     });
+  }
+
+  async failPage(
+    pageId: string,
+    failure: { reason: FailureReason; detail: string },
+  ): Promise<number> {
+    const page = await this.prisma.analysisPage.update({
+      where: { id: pageId },
+      data: { failureReason: failure.reason, failureDetail: failure.detail },
+      select: { analysisId: true },
+    });
+    return this.countPendingPages(page.analysisId);
   }
 
   async findVectors(analysisId: string) {
