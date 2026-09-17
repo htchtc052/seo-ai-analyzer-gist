@@ -1,6 +1,7 @@
 import type { CompletedAnalysis, SemanticReport } from "@/entities/analysis";
 
 const TOP_FRAGMENTS = 5;
+const RECOMMENDED_SHARE = 3;
 
 type FragmentScore = {
   relevance: number;
@@ -12,6 +13,7 @@ export type AnalysisPageRow = {
   id: string;
   domain: string;
   ours: boolean;
+  recommended: boolean;
   title: string;
   url: string;
   score: number | undefined;
@@ -46,6 +48,7 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
         id: page.url,
         domain: new URL(page.url).hostname,
         ours: false,
+        recommended: false,
         title: page.title,
         url: page.url,
         score: topScore(fragments),
@@ -55,7 +58,11 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
         fragmentCount: fragments.length,
       };
     })
-    .toSorted((left, right) => right.score - left.score);
+    .toSorted((left, right) => right.score - left.score)
+    .map((page, index, all) => ({
+      ...page,
+      recommended: index < Math.ceil(all.length / RECOMMENDED_SHARE),
+    }));
 
   const primaryRelevance = new Map<number, number[]>();
   for (const score of run.semantic.primary) {
@@ -70,6 +77,7 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
         id: page.url,
         domain: new URL(page.url).hostname,
         ours: true,
+        recommended: false,
         title: page.title,
         url: page.url,
         score: undefined,

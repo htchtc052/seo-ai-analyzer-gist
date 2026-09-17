@@ -21,7 +21,7 @@ export const analysisInputSchema = z.object({
   crawlPagesPerSite: z
     .number()
     .int("Введите целое число")
-    .min(3, "Минимум 3 страницы")
+    .min(5, "Минимум 5 страниц")
     .max(90, "Максимум 90 страниц"),
 });
 

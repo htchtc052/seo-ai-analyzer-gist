@@ -13,7 +13,7 @@ import {
 import { Input } from "@/shared/ui/input";
 import { analysisInputSchema, type AnalysisInput } from "@/entities/analysis";
 
-const PAGE_STEP = 3;
+const PAGE_STEP = 5;
 
 type AnalysisFormProps = {
   onSubmit: (input: AnalysisInput) => void;
@@ -39,13 +39,13 @@ export function AnalysisForm({
       searchQuery: "",
       primarySiteUrl: "",
       competitorSiteUrl: "",
-      crawlPagesPerSite: 45,
+      crawlPagesPerSite: 30,
     },
   });
 
   function adjustPageLimit(delta: number) {
     const current = getValues("crawlPagesPerSite");
-    const value = Math.min(90, Math.max(3, current + delta * PAGE_STEP));
+    const value = Math.min(90, Math.max(5, current + delta * PAGE_STEP));
     setValue("crawlPagesPerSite", value, {
       shouldDirty: true,
       shouldValidate: true,
@@ -108,7 +108,7 @@ export function AnalysisForm({
             <Input
               id="crawlPagesPerSite"
               type="number"
-              min={3}
+              min={5}
               max={90}
               step={PAGE_STEP}
               inputMode="numeric"

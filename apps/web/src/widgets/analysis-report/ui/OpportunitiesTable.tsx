@@ -13,6 +13,7 @@ import {
   ArrowUpDown,
   ExternalLink,
   Info,
+  Star,
 } from "lucide-react";
 import {
   Table,
@@ -33,6 +34,13 @@ const features = tableFeatures({
 });
 const columnHelper = createColumnHelper<typeof features, AnalysisPageRow>();
 const columns = columnHelper.columns([
+  columnHelper.accessor("recommended", {
+    header: () => <span className="sr-only">Рекомендация</span>,
+    cell: ({ row }) =>
+      row.original.recommended ? (
+        <Star className="size-3.5 text-primary" aria-label="Рекомендуем" />
+      ) : null,
+  }),
   columnHelper.accessor("domain", {
     header: ({ column }) => (
       <SortHeader
@@ -163,11 +171,13 @@ export function OpportunitiesTable({ pages }: { pages: AnalysisPageRow[] }) {
     <section className="grid gap-3">
       <div>
         <h3 className="font-semibold">Страницы обоих доменов</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Сначала страницы конкурента с наибольшей оценкой, затем ваши. Оценка
-          конкурента считается относительно ваших страниц из этой же таблицы:
-          если среди них нет материалов по теме, оценка завышена. Сам текст
-          читается по ссылке.
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          Показаны все обойдённые страницы по убыванию оценки. Подсвеченная
+          верхушка — то, ради чего стоит открывать конкурента; ниже идёт
+          справка: страницы, которые обход посмотрел, но по запросу они не
+          пригодились. Оценка конкурента считается относительно ваших страниц из
+          этой же таблицы — если среди них нет материалов по теме, она завышена.
+          Сам текст читается по ссылке.
         </p>
       </div>
       <div className="overflow-hidden rounded-lg border bg-background">
@@ -187,7 +197,12 @@ export function OpportunitiesTable({ pages }: { pages: AnalysisPageRow[] }) {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                className={
+                  row.original.recommended ? "bg-primary/5" : undefined
+                }
+              >
                 {row.getAllCells().map((cell) => (
                   <TableCell key={cell.id}>
                     <table.FlexRender cell={cell} />

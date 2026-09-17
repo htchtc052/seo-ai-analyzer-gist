@@ -20,7 +20,6 @@ const MIN_CONTENT_LENGTH = 300;
 const DEFAULT_CRAWL_DELAY_MS = 500;
 const MIN_TOKEN_LENGTH = 3;
 const MAX_SEEDED_URLS = 300;
-const REPORT_SHARE = 3;
 const MIN_PREFIX_LENGTH = 4;
 
 type FrontierLink = {
@@ -145,16 +144,9 @@ export class SiteCrawlerService {
       );
     }
 
-    const selected = pages
-      .map((page) => ({ page, score: contentScore(weights, page) }))
-      .toSorted((left, right) => right.score - left.score)
-      .slice(0, Math.ceil(crawlPages / REPORT_SHARE))
-      .map((candidate) => candidate.page);
-    this.logger.log(
-      `${origin}: kept ${selected.length} of ${pages.length} readable pages`,
-    );
+    this.logger.log(`${origin}: crawled ${pages.length} readable pages`);
 
-    return { startUrl, pages: selected };
+    return { startUrl, pages };
   }
 }
 
@@ -165,20 +157,6 @@ function seedUrls(weights: TermWeights, corpus: string[]): string[] {
     .toSorted((left, right) => right.score - left.score)
     .slice(0, MAX_SEEDED_URLS)
     .map((candidate) => candidate.url);
-}
-
-function contentScore(
-  weights: TermWeights,
-  page: CrawledSite["pages"][number],
-): number {
-  const text = [
-    page.title,
-    ...page.sections.flatMap((section) => [
-      section.heading ?? "",
-      ...section.paragraphs,
-    ]),
-  ].join(" ");
-  return matchScore(weights, tokenize(text));
 }
 
 type TermWeights = Map<string, number>;
