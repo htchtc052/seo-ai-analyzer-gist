@@ -16,6 +16,11 @@ export type AnalysisPageRow = {
   relevance: number;
   bestFragment: number | undefined;
   fragmentCount: number;
+  pageDate: string | null;
+  pageDateSource: string | null;
+  sitemapLastmod: string | null;
+  relevanceWeight: number;
+  noveltyWeight: number;
 };
 
 export type AnalysisDomainRow = {
@@ -28,9 +33,38 @@ export type AnalysisDomainRow = {
 };
 
 export type AnalysisReport = {
-  domains: AnalysisDomainRow[];
   pages: AnalysisPageRow[];
 };
+
+export function summarizeDomains(
+  pages: AnalysisPageRow[],
+): AnalysisDomainRow[] {
+  const byDomain = new Map<string, AnalysisPageRow[]>();
+  for (const page of pages) {
+    const rows = byDomain.get(page.domain) ?? [];
+    rows.push(page);
+    byDomain.set(page.domain, rows);
+  }
+
+  return [...byDomain.entries()]
+    .map(([domain, rows]) => {
+      const fragmentCount = total(rows.map((row) => row.fragmentCount));
+      const weight = total(rows.map((row) => row.relevanceWeight));
+      return {
+        domain,
+        ours: rows[0]!.ours,
+        pageCount: rows.length,
+        fragmentCount,
+        relevance: fragmentCount === 0 ? 0 : weight / fragmentCount,
+        novelty: rows[0]!.ours
+          ? undefined
+          : weight === 0
+            ? 0
+            : total(rows.map((row) => row.noveltyWeight)) / weight,
+      };
+    })
+    .toSorted((left, right) => Number(left.ours) - Number(right.ours));
+}
 
 export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
   const competitorByPage = groupByPage(
@@ -55,6 +89,11 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
         relevance,
         bestFragment: Math.max(...fragments.map(fragmentScore), 0),
         fragmentCount: fragments.length,
+        pageDate: page.pageDate,
+        pageDateSource: page.pageDateSource,
+        sitemapLastmod: page.sitemapLastmod,
+        relevanceWeight: total(fragments.map((f) => f.relevance)),
+        noveltyWeight: total(fragments.map(fragmentScore)),
       };
     })
     .toSorted((left, right) => right.priority - left.priority);
@@ -73,6 +112,11 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
         relevance: meanRelevance(fragments),
         bestFragment: undefined,
         fragmentCount: fragments.length,
+        pageDate: page.pageDate,
+        pageDateSource: page.pageDateSource,
+        sitemapLastmod: page.sitemapLastmod,
+        relevanceWeight: total(fragments.map((f) => f.relevance)),
+        noveltyWeight: total(fragments.map(fragmentScore)),
       };
     })
     .toSorted((left, right) => right.relevance - left.relevance);
@@ -81,24 +125,6 @@ export function buildAnalysisReport(run: CompletedAnalysis): AnalysisReport {
   const primaryFragments = [...primaryByPage.values()].flat();
 
   return {
-    domains: [
-      {
-        domain: new URL(run.competitorSiteUrl).hostname,
-        ours: false,
-        pageCount: competitorPages.length,
-        fragmentCount: competitorFragments.length,
-        relevance: meanRelevance(competitorFragments),
-        novelty: novelty(competitorFragments),
-      },
-      {
-        domain: new URL(run.primarySiteUrl).hostname,
-        ours: true,
-        pageCount: primaryPages.length,
-        fragmentCount: primaryFragments.length,
-        relevance: meanRelevance(primaryFragments),
-        novelty: undefined,
-      },
-    ],
     pages: [...competitorPages, ...primaryPages],
   };
 }

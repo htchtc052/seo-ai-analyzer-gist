@@ -10,22 +10,12 @@ import type { AnalysisDomainRow } from "../model/analysis-report";
 import { ColumnHelp } from "./ColumnHelp";
 import { formatPercent, formatScore } from "./report-format";
 
-type DomainTableProps = {
-  domains: AnalysisDomainRow[];
-  model: string;
-};
-
-export function DomainTable({ domains, model }: DomainTableProps) {
+export function DomainTable({ domains }: { domains: AnalysisDomainRow[] }) {
   return (
-    <section className="grid gap-3">
-      <div>
-        <h3 className="font-semibold">Домены целиком</h3>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Отвечает на вопрос, стоит ли вообще смотреть этого конкурента. Ниже
-          таблица страниц отвечает, что именно у него смотреть. Эмбеддинги —{" "}
-          {model}.
-        </p>
-      </div>
+    <section className="grid gap-2">
+      <h3 className="text-sm font-semibold">
+        Домены целиком — стоит ли смотреть этого конкурента
+      </h3>
       <div className="overflow-hidden rounded-lg border bg-background">
         <Table>
           <TableHeader>

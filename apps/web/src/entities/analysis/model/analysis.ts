@@ -38,6 +38,9 @@ const sectionSchema = z.object({
 const crawledPageSchema = z.object({
   url: siteUrlSchema,
   title: z.string(),
+  pageDate: z.iso.datetime().nullable(),
+  pageDateSource: z.string().nullable(),
+  sitemapLastmod: z.iso.datetime().nullable(),
   sections: z.array(sectionSchema),
 });
 

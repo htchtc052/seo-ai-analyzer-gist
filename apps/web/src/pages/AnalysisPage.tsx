@@ -89,17 +89,6 @@ export function AnalysisPage() {
           <AnalysisProgress run={run} />
           {run.status === "completed" && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="size-5 text-primary" />
-                  Анализ завершён
-                </CardTitle>
-                <CardDescription>
-                  Обработано{" "}
-                  {run.semantic.primary.length + run.semantic.competitor.length}{" "}
-                  фрагментов моделью {run.semantic.model}.
-                </CardDescription>
-              </CardHeader>
               <CardContent>
                 <AnalysisReport run={run} />
               </CardContent>

@@ -62,10 +62,11 @@ export class SiteCrawlerService {
     let robots = await this.robots.load(origin);
     let crawlDelayMs = crawlDelay(robots);
 
-    const corpus =
+    const sitemap =
       queryTokens.length === 0
-        ? []
+        ? new Map<string, Date | null>()
         : await this.sitemaps.collect(origin, robots.getSitemaps());
+    const corpus = [...sitemap.keys()];
     const weights = weighTerms(queryTokens, corpus);
     this.logger.log(
       `${origin}: term weights ${[...weights]
@@ -127,7 +128,13 @@ export class SiteCrawlerService {
           const fingerprint = contentFingerprint(extracted.article.sections);
           if (!seenContent.has(fingerprint)) {
             seenContent.add(fingerprint);
-            pages.push({ url: loadedUrl, ...extracted.article });
+            const { publishedAt, ...article } = extracted.article;
+            pages.push({
+              url: loadedUrl,
+              pageDate: publishedAt,
+              sitemapLastmod: sitemap.get(loadedUrl) ?? null,
+              ...article,
+            });
             await onPage();
           }
         }

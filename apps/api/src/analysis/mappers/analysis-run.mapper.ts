@@ -3,8 +3,7 @@ import type {
   AnalysisFailure,
   AnalysisRun,
   AnalysisSummary,
-  CrawledSite,
-  CrawledSources,
+  ReportSources,
 } from "../dto/analysis.types.js";
 
 export const runInclude = Prisma.validator<Prisma.AnalysisInclude>()({
@@ -145,18 +144,14 @@ function toReason(reason: string): "unreachable" | "empty" {
   return reason === "EMPTY" ? "empty" : "unreachable";
 }
 
-function toSources(run: RunRecord): CrawledSources {
+function toSources(run: RunRecord): ReportSources {
   return {
     primary: toSource(run, PageSource.PRIMARY, run.primarySiteUrl),
     competitor: toSource(run, PageSource.COMPETITOR, run.competitorSiteUrl),
   };
 }
 
-function toSource(
-  run: RunRecord,
-  source: PageSource,
-  startUrl: string,
-): CrawledSite {
+function toSource(run: RunRecord, source: PageSource, startUrl: string) {
   return {
     startUrl,
     pages: run.pages
@@ -164,6 +159,9 @@ function toSource(
       .map((page) => ({
         url: page.url,
         title: page.title,
+        pageDate: page.pageDate?.toISOString() ?? null,
+        pageDateSource: page.pageDateSource,
+        sitemapLastmod: page.sitemapLastmod?.toISOString() ?? null,
         sections: toSections(page.fragments),
       })),
   };

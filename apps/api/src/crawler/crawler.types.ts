@@ -3,6 +3,8 @@ export type ExtractedSection = {
   paragraphs: string[];
 };
 
+export type PageDate = { date: Date; source: string } | null;
+
 export type PageLink = {
   url: string;
   text: string;
@@ -11,6 +13,8 @@ export type PageLink = {
 export type CrawledPage = {
   url: string;
   title: string;
+  pageDate: PageDate;
+  sitemapLastmod: Date | null;
   sections: ExtractedSection[];
 };
 
@@ -25,7 +29,11 @@ export type LoadedPage = {
 };
 
 export type ExtractedPage = {
-  article: { title: string; sections: ExtractedSection[] } | null;
+  article: {
+    title: string;
+    publishedAt: PageDate;
+    sections: ExtractedSection[];
+  } | null;
   links: PageLink[];
 };
 

@@ -1,4 +1,7 @@
-import type { CrawledSite } from "../../crawler/crawler.types.js";
+import type {
+  CrawledSite,
+  ExtractedSection,
+} from "../../crawler/crawler.types.js";
 import type { AnalysisInputDto } from "./analysis-input.schema.js";
 
 export type AnalysisReceipt = { id: string; status: "queued" };
@@ -13,6 +16,20 @@ export type AnalysisFailure =
 export type CrawledSources = {
   primary: CrawledSite;
   competitor: CrawledSite;
+};
+
+export type ReportPage = {
+  url: string;
+  title: string;
+  pageDate: string | null;
+  pageDateSource: string | null;
+  sitemapLastmod: string | null;
+  sections: ExtractedSection[];
+};
+
+export type ReportSources = {
+  primary: { startUrl: string; pages: ReportPage[] };
+  competitor: { startUrl: string; pages: ReportPage[] };
 };
 export type FragmentRef = {
   pageIndex: number;
@@ -60,17 +77,17 @@ export type AnalysisRun =
   | (AnalysisBase & { status: "crawling"; progress: AnalysisProgress })
   | (AnalysisBase & {
       status: "crawled" | "analyzing";
-      sources: CrawledSources;
+      sources: ReportSources;
       progress: AnalysisProgress;
     })
   | (AnalysisBase & {
       status: "completed";
-      sources: CrawledSources;
+      sources: ReportSources;
       semantic: SemanticReport;
     })
   | (AnalysisBase & {
       status: "failed";
-      sources?: CrawledSources;
+      sources?: ReportSources;
       error: AnalysisFailure;
     });
 

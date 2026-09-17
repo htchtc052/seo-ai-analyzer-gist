@@ -61,6 +61,9 @@ model AnalysisPage {
   position   Int
   url        String
   title      String
+  pageDate       DateTime?
+  pageDateSource String?
+  sitemapLastmod DateTime?
   embeddedAt DateTime?
   analysis   Analysis    @relation(fields: [analysisId], references: [id], onDelete: Cascade)
   fragments  Fragment[]

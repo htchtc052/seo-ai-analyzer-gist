@@ -248,6 +248,9 @@ function toPageCreates(site: CrawledSite, source: PageSource) {
     position,
     url: page.url,
     title: page.title,
+    pageDate: page.pageDate?.date ?? null,
+    pageDateSource: page.pageDate?.source ?? null,
+    sitemapLastmod: page.sitemapLastmod,
     fragments: {
       create: page.sections.flatMap((section, sectionIndex) =>
         section.paragraphs.map((text, paragraphIndex) => ({

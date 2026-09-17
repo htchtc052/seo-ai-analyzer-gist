@@ -111,6 +111,18 @@ const columns = columnHelper.columns([
     sortUndefined: "last",
     cell: ({ getValue }) => <Cosine value={getValue()} />,
   }),
+  columnHelper.accessor("pageDate", {
+    header: ({ column }) => (
+      <SortHeader
+        label="Дата"
+        column={column}
+        formula="мета-тег страницы, при его отсутствии — lastmod карты сайта"
+        note="Источник подписан под датой. lastmod часто означает пересборку страницы, а не публикацию, поэтому это справка, а не факт. На расчёт дата не влияет."
+      />
+    ),
+    sortUndefined: "last",
+    cell: ({ row }) => <PageDate page={row.original} />,
+  }),
   columnHelper.accessor("fragmentCount", {
     header: ({ column }) => (
       <SortHeader
@@ -144,15 +156,9 @@ export function PageTable({ pages, threshold }: PageTableProps) {
 
   return (
     <section className="grid gap-3">
-      <div>
-        <h3 className="font-semibold">Страницы</h3>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Все обойдённые страницы обоих доменов. Подсвечены те, чья
-          релевантность не ниже порога, — это и есть рекомендация. Остальные
-          оставлены справкой о том, что обход посмотрел. Текст читается по
-          ссылке.
-        </p>
-      </div>
+      <h3 className="text-sm font-semibold">
+        Страницы — что именно смотреть. Подсвечено то, что рекомендуем
+      </h3>
       <div className="overflow-hidden rounded-lg border bg-background">
         <Table>
           <TableHeader>
@@ -198,6 +204,21 @@ export function PageTable({ pages, threshold }: PageTableProps) {
         </Table>
       </div>
     </section>
+  );
+}
+
+function PageDate({ page }: { page: AnalysisPageRow }) {
+  const date = page.pageDate ?? page.sitemapLastmod;
+  if (!date) return <span className="block text-right">—</span>;
+  return (
+    <span className="block text-right text-xs whitespace-nowrap">
+      <span className="tabular-nums">{date.slice(0, 10)}</span>
+      <span className="block text-muted-foreground">
+        {page.pageDate
+          ? (page.pageDateSource ?? "мета-тег")
+          : "sitemap lastmod"}
+      </span>
+    </span>
   );
 }
 
