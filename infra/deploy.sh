@@ -2,6 +2,17 @@
 set -eu
 cd "$(dirname "$0")"
 
+# Переменные из .env.example на сервер сами не переезжают, а пустая
+# переменная тихо превращается в пустую строку и роняет уже сам psql.
+missing=""
+for name in $(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example); do
+  grep -q "^${name}=" .env || missing="${missing} ${name}"
+done
+if [ -n "$missing" ]; then
+  echo "В .env не хватает переменных:${missing}" >&2
+  exit 1
+fi
+
 docker compose build landing v1-api v1-web v2-api v2-web v3-api v3-web
 docker compose run --rm v1-api npx --no-install prisma migrate deploy
 docker compose run --rm v2-api npx --no-install prisma migrate deploy
