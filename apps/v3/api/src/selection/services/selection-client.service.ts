@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { setTimeout } from "node:timers/promises";
 import { ConfigService } from "@nestjs/config";
 import type { AppConfig } from "../../config/config.schema.js";
 import {
@@ -10,6 +11,8 @@ import {
 const DIVERSITY_WEIGHT = 1;
 const SEED = 42;
 const TIMEOUT_MS = 30_000;
+const ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1_000;
 
 type SelectResponse = { indices: number[] };
 
@@ -28,22 +31,37 @@ export class SelectionClientService {
     candidates: SelectionCandidate[],
     count: number,
   ): Promise<Selection> {
-    const response = await fetch(`${this.baseUrl}/select`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        vectors: candidates.map((candidate) => candidate.embedding),
-        weights: candidates.map((candidate) => candidate.weight),
-        k: count,
-        lam: DIVERSITY_WEIGHT,
-        seed: SEED,
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).catch((error: Error) => {
-      throw new SelectionError(
-        `Selection service is unreachable: ${error.message}`,
-      );
+    const request = JSON.stringify({
+      vectors: candidates.map((candidate) => candidate.embedding),
+      weights: candidates.map((candidate) => candidate.weight),
+      k: count,
+      lam: DIVERSITY_WEIGHT,
+      seed: SEED,
     });
+
+    let failure: Error | undefined;
+    let response: Response | undefined;
+
+    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+      try {
+        response = await fetch(`${this.baseUrl}/select`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: request,
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+        break;
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+        failure = error;
+        if (attempt + 1 < ATTEMPTS) await setTimeout(RETRY_DELAY_MS);
+      }
+    }
+
+    if (!response)
+      throw new SelectionError(
+        `Selection service is unreachable: ${failure!.message}`,
+      );
 
     if (!response.ok)
       throw new SelectionError(

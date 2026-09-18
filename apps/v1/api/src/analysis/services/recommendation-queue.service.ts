@@ -7,6 +7,9 @@ import {
   type AnalysisJob,
 } from "../constants/analysis.constants.js";
 
+const RECOMMENDATION_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 2_000;
+
 @Injectable()
 export class RecommendationQueueService {
   constructor(
@@ -15,7 +18,15 @@ export class RecommendationQueueService {
   ) {}
 
   async enqueue(runId: string): Promise<void> {
-    await this.queue.add("recommend", { runId }, { jobId: runId, attempts: 1 });
+    await this.queue.add(
+      "recommend",
+      { runId },
+      {
+        jobId: runId,
+        attempts: RECOMMENDATION_ATTEMPTS,
+        backoff: { type: "exponential", delay: RETRY_DELAY_MS },
+      },
+    );
   }
 
   async getStatus(runId: string): Promise<RecommendationJob | null> {

@@ -11,6 +11,7 @@ import { SemanticComparisonService } from "./semantic-comparison.service.js";
 const RECOMMENDATION_COUNT = 8;
 const MIN_CANDIDATE_LENGTH = 150;
 const MIN_CANDIDATE_RELEVANCE = 0.35;
+const MAX_CANDIDATE_MARKUP_SHARE = 0.3;
 
 @Injectable()
 export class AnalysisWorkflowService {
@@ -71,7 +72,8 @@ export class AnalysisWorkflowService {
       .filter(
         (fragment) =>
           fragment.text.length >= MIN_CANDIDATE_LENGTH &&
-          clamp(fragment.relevance ?? 0) >= MIN_CANDIDATE_RELEVANCE,
+          clamp(fragment.relevance ?? 0) >= MIN_CANDIDATE_RELEVANCE &&
+          markupShare(fragment.text) <= MAX_CANDIDATE_MARKUP_SHARE,
       )
       .map((fragment) => ({
         id: fragment.id,
@@ -121,6 +123,11 @@ function toGap(
 
 function clamp(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+function markupShare(text: string): number {
+  const stripped = text.replace(/<[^<>]*>/g, "");
+  return (text.length - stripped.length) / text.length;
 }
 
 function isPageFailure(
