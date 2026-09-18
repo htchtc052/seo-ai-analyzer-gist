@@ -101,15 +101,17 @@ export function AnalysisForm({
                 disabled={isStarting}
                 {...register(`competitorUrls.${index}.url`)}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label={`Убрать конкурента ${index + 1}`}
-                disabled={isStarting || fields.length === 1}
-                onClick={() => remove(index)}
-              >
-                <X />
-              </Button>
+              {fields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={`Убрать конкурента ${index + 1}`}
+                  disabled={isStarting}
+                  onClick={() => remove(index)}
+                >
+                  <X />
+                </Button>
+              )}
             </div>
           ))}
           <Button
