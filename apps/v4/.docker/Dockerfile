@@ -1,5 +1,6 @@
 FROM node:24-slim AS deps
 WORKDIR /app
+ENV ONNXRUNTIME_NODE_INSTALL=skip
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 

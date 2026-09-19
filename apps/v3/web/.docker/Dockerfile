@@ -2,6 +2,7 @@ FROM node:24-alpine AS build
 ARG APP_BASE_PATH=/
 ENV APP_BASE_PATH=$APP_BASE_PATH
 WORKDIR /app
+ENV ONNXRUNTIME_NODE_INSTALL=skip
 COPY package.json package-lock.json tsconfig.json ./
 COPY apps/v1/api/package.json apps/v1/api/
 COPY apps/v1/web/package.json apps/v1/web/
@@ -10,6 +11,8 @@ COPY apps/v2/api/package.json apps/v2/api/
 COPY apps/v2/web/package.json apps/v2/web/
 COPY apps/v3/api/package.json apps/v3/api/
 COPY apps/v3/web/package.json apps/v3/web/
+COPY apps/v5/api/package.json apps/v5/api/
+COPY apps/v5/web/package.json apps/v5/web/
 RUN npm ci --no-audit --no-fund
 COPY apps/v3/web apps/v3/web
 RUN npm run build -w @seo/v3-web

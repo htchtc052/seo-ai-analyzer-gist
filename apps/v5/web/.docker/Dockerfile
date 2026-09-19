@@ -2,6 +2,7 @@ FROM node:24-alpine AS build
 ARG APP_BASE_PATH=/
 ENV APP_BASE_PATH=$APP_BASE_PATH
 WORKDIR /app
+ENV ONNXRUNTIME_NODE_INSTALL=skip
 COPY package.json package-lock.json tsconfig.json ./
 COPY apps/v1/api/package.json apps/v1/api/
 COPY apps/v1/web/package.json apps/v1/web/

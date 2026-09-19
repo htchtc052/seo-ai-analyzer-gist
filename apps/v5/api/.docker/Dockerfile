@@ -1,5 +1,6 @@
 FROM node:24-slim AS base
 WORKDIR /app
+ENV ONNXRUNTIME_NODE_INSTALL=skip
 COPY package.json package-lock.json tsconfig.json ./
 COPY apps/v1/api/package.json apps/v1/api/
 COPY apps/v1/web/package.json apps/v1/web/
@@ -21,7 +22,7 @@ RUN npm run model:fetch -w @seo/v5-api
 
 FROM base
 ENV NODE_ENV=production
-RUN npm ci --omit=dev --omit=optional -w @seo/v5-api --no-audit --no-fund \
+RUN npm ci --omit=dev -w @seo/v5-api --no-audit --no-fund \
   && rm -rf /root/.npm /root/.cache
 COPY --from=build /app/apps/v5/api/dist apps/v5/api/dist
 COPY --from=model /app/apps/v5/api/.models apps/v5/api/.models
