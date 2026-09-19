@@ -1,0 +1,21 @@
+[
+  {
+    "title": "Пример 1",
+    "query": "настройка robots.txt для сайта",
+    "url": "https://site-analyzer.ru/articles/robots-txt/",
+    "competitorUrls": [
+      "https://habr.com/ru/articles/1018250/",
+      "https://skobeeff.com/blog/gayd-po-robots-txt/",
+      "https://timeweb.cloud/docs/general/nastrojka-fajla-robots-txt"
+    ]
+  },
+  {
+    "title": "Пример 2",
+    "query": "повторные роды",
+    "url": "https://nanya.ru/articles/pregnancy_and_childbirth/childbirth/vtoryie-rodyi-legche-chem-pervyie-beremenno/",
+    "competitorUrls": [
+      "https://medaboutme.ru/articles/legche_chem_v_pervyy_raz_mify_i_pravda_o_vtorykh_rodakh/",
+      "https://materinstvo.ru/aftercesar/1898"
+    ]
+  }
+]

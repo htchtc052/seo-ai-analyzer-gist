@@ -13,6 +13,8 @@
     "dev:v1": "concurrently -k -n v1-api,v1-web \"npm run dev -w @seo/v1-api\" \"npm run dev -w @seo/v1-web\"",
     "dev:v2": "concurrently -k -n v2-api,v2-web \"npm run dev -w @seo/v2-api\" \"npm run dev -w @seo/v2-web\"",
     "dev:v3": "concurrently -k -n v3-api,v3-web \"npm run dev -w @seo/v3-api\" \"npm run dev -w @seo/v3-web\"",
+    "dev:v4": "npm run dev --prefix apps/v4",
+    "dev:v5": "concurrently -k -n v5-api,v5-web \"npm run dev -w @seo/v5-api\" \"npm run dev -w @seo/v5-web\"",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

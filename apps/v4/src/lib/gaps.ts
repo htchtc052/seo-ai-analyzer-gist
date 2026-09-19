@@ -1,0 +1,245 @@
+import { tokenize } from "./embeddings";
+import type { AnalyzedDoc, GapInsight, ScrapedPage } from "./types";
+
+export function topTerms(text: string, limit = 12): string[] {
+  const tf = new Map<string, number>();
+  for (const t of tokenize(text)) tf.set(t, (tf.get(t) ?? 0) + 1);
+  return [...tf.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([t]) => t);
+}
+
+/** Грубый стемм: уникальность ≈ уникальности, контента ≈ контент */
+function tokensRelated(a: string, b: string): boolean {
+  if (a === b) return true;
+  const minLen = Math.min(a.length, b.length);
+  if (minLen < 4) return false;
+  const n = Math.min(6, minLen);
+  return a.slice(0, n) === b.slice(0, n);
+}
+
+function queryHitsInHeading(headingTokens: string[], queryTokens: string[]): number {
+  let hits = 0;
+  for (const q of queryTokens) {
+    if (headingTokens.some((h) => tokensRelated(q, h))) hits += 1;
+  }
+  return hits;
+}
+
+/**
+ * Раздел относится к запросу только при реальном пересечении.
+ * Одного seo/контент мало, если в запросе есть более точное слово (уникальность и т.п.).
+ */
+export function isHeadingRelevantToQuery(heading: string, query: string): boolean {
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return false;
+
+  const headingTokens = tokenize(heading);
+  if (headingTokens.length === 0) return false;
+
+  const hits = queryHitsInHeading(headingTokens, queryTokens);
+  if (hits === 0) return false;
+
+  const byLen = [...queryTokens].sort((a, b) => b.length - a.length);
+  const longest = byLen[0]!;
+  const hasLongest = headingTokens.some((h) => tokensRelated(longest, h));
+
+  // Есть «якорное» слово запроса — без него раздел не по теме
+  if (longest.length >= 5) {
+    return hasLongest;
+  }
+
+  // Короткий запрос (crm, api): достаточно любого совпадения
+  return hits >= 1;
+}
+
+/**
+ * Доля ваших частых тем, которых нет в топе конкурентов.
+ * null — если данных недостаточно (не заглушка).
+ */
+export function computeTopicDistinctiveness(
+  yourText: string,
+  competitorTexts: string[],
+): number | null {
+  if (!yourText.trim() || competitorTexts.length === 0) return null;
+
+  const youTop = topTerms(yourText, 60);
+  if (youTop.length < 8) return null;
+
+  const competitorTop = new Set<string>();
+  for (const text of competitorTexts) {
+    for (const term of topTerms(text, 60)) competitorTop.add(term);
+  }
+
+  let unique = 0;
+  for (const term of youTop) {
+    if (!competitorTop.has(term)) unique += 1;
+  }
+
+  return Math.round((unique / youTop.length) * 1000) / 1000;
+}
+
+export function buildInsights(
+  docs: AnalyzedDoc[],
+  pages: ScrapedPage[],
+  query: string,
+  radius: number,
+): GapInsight[] {
+  const insights: GapInsight[] = [];
+  const you = docs.find((d) => d.role === "you" || d.role === "draft");
+  const competitors = docs.filter((d) => d.role === "competitor" && !d.error);
+  const pageById = new Map(pages.map((p) => [p.id, p]));
+
+  // Порог «опасно близко» = внутри exclusion radius по cosine distance
+  const dangerSim = Math.round((1 - radius) * 1000) / 1000;
+
+  if (!you) {
+    insights.push({
+      type: "action",
+      title: "Добавьте свою страницу",
+      detail: "Без вашего URL или черновика нельзя понять, попадаете ли вы в чужую зону.",
+    });
+    return insights;
+  }
+
+  if (you.exclusionReason === "bubble" && you.inBubbleOf) {
+    const vip = docs.find((d) => d.id === you.inBubbleOf);
+    insights.push({
+      type: "overlap",
+      title: "Вы внутри чужой зоны (GIST)",
+      detail: vip
+        ? `Дистанция до более полезного источника «${vip.label}» меньше порога ${radius.toFixed(2)}. В логике GIST вас отфильтровывают как redundant.`
+        : `Вы ближе порога ${radius.toFixed(2)} к более полезному источнику.`,
+    });
+  } else if (you.selected) {
+    insights.push({
+      type: "strength",
+      title: "Вы в GIST-выборке",
+      detail: `При пороге diversity ${radius.toFixed(2)} страница и полезна, и достаточно далека от других отобранных.`,
+    });
+  } else if (you.exclusionReason === "capacity") {
+    insights.push({
+      type: "action",
+        title: "Не вошли в короткий список",
+        detail:
+        "Зона тематической близости вас не исключила. Мест в коротком списке не хватило: повышайте полезность (структура, факты, ответ на запрос).",
+    });
+  }
+
+  const youPage = pageById.get(you.id);
+  const queryTrim = query.trim();
+  const hasQuery = tokenize(queryTrim).length > 0;
+
+  if (youPage && competitors.length) {
+    const youTerms = new Set(topTerms(youPage.text, 40));
+    const shared: string[] = [];
+    const missingTopics: Array<{ text: string; meta: string }> = [];
+
+    if (!hasQuery) {
+      insights.push({
+        type: "action",
+        title: "Укажите поисковый запрос",
+        detail:
+          "Без запроса сверху не показываем «дыры»: иначе в список попадут чужие темы не по делу.",
+      });
+    }
+
+    for (const c of competitors) {
+      const page = pageById.get(c.id);
+      if (!page) continue;
+
+      if (hasQuery) {
+        for (const h of page.headings.slice(0, 10)) {
+          if (!isHeadingRelevantToQuery(h, queryTrim)) continue;
+          const tokens = tokenize(h);
+          if (tokens.length === 0) continue;
+          const covered = tokens.filter((t) => youTerms.has(t)).length / tokens.length;
+          if (covered >= 0.35) continue;
+          const already = missingTopics.some(
+            (item) => item.text.toLowerCase() === h.toLowerCase(),
+          );
+          if (already || missingTopics.length >= 8) continue;
+          missingTopics.push({ text: h, meta: c.label });
+        }
+      }
+
+      for (const t of topTerms(page.text, 10)) {
+        if (youTerms.has(t) && !shared.includes(t) && shared.length < 8) shared.push(t);
+      }
+    }
+
+    if (shared.length) {
+      insights.push({
+        type: "overlap",
+        title: "Общие частые темы с конкурентами",
+        detail: shared.join(", "),
+        items: shared.map((text) => ({ text })),
+      });
+    }
+
+    if (hasQuery && missingTopics.length) {
+      insights.push({
+        type: "missing",
+        title: "Пробелы по вашему запросу",
+        detail: `Разделы конкурентов про «${queryTrim}», которых у вас почти нет. Имеет смысл добавить, если усилят ответ на запрос — не копируйте чужой план целиком.`,
+        items: missingTopics,
+      });
+    } else if (hasQuery) {
+      insights.push({
+        type: "strength",
+        title: "Явных пробелов по запросу не видно",
+        detail: `По заголовкам конкурентов не нашли разделов про «${queryTrim}», которых у вас почти нет. Либо вы уже закрываете тему, либо у конкурентов другие углы.`,
+      });
+    }
+
+    const youUnique = topTerms(youPage.text, 25).filter((t) => {
+      return !competitors.some((c) => {
+        const p = pageById.get(c.id);
+        return p ? topTerms(p.text, 30).includes(t) : false;
+      });
+    });
+
+    if (youUnique.length) {
+      insights.push({
+        type: "strength",
+        title: "Ваши относительно уникальные слова",
+        detail: "Эти частые слова сильнее выражены у вас, чем у конкурентов.",
+        items: youUnique.slice(0, 8).map((text) => ({ text })),
+      });
+    }
+  }
+
+  const withSim = competitors
+    .map((c) => ({ c, sim: c.similarityToYou }))
+    .filter((x): x is { c: AnalyzedDoc; sim: number } => x.sim != null)
+    .sort((a, b) => b.sim - a.sim);
+
+  const nearest = withSim[0];
+  if (nearest) {
+    if (nearest.sim >= dangerSim) {
+      insights.push({
+        type: "action",
+        title: "Близко к порогу тематической близости",
+        detail: `«${nearest.c.label}» — тематическая близость ${Math.round(nearest.sim * 100)}% (порог зоны ≈ ${Math.round(dangerSim * 100)}%). Добавьте свой кейс, цифры или другой угол, а не тот же план статьи.`,
+      });
+    } else if (nearest.sim < dangerSim * 0.65) {
+      insights.push({
+        type: "action",
+        title: "Вы далеко от конкурентов — проверьте пользу",
+        detail: query
+          ? `Отличаться хорошо, но текст должен закрывать запрос «${query}».`
+          : "Отличаться хорошо, но страница должна закрывать реальный поисковый запрос.",
+      });
+    } else {
+      insights.push({
+        type: "action",
+        title: "Усильте information gain",
+        detail:
+          "Добавьте то, чего нет у лидера: свои данные, личный опыт, узкий сценарий или доказанный спорный тезис.",
+      });
+    }
+  }
+
+  return insights.slice(0, 7);
+}

@@ -53,6 +53,7 @@ services:
 
   v1-api:
     <<: *api
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v1/api/.docker/Dockerfile
@@ -73,6 +74,7 @@ services:
 
   v1-web:
     <<: *web
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v1/web/.docker/Dockerfile
@@ -90,6 +92,7 @@ services:
 
   v2-api:
     <<: *api
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v2/api/.docker/Dockerfile
@@ -109,6 +112,7 @@ services:
 
   v2-web:
     <<: *web
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v2/web/.docker/Dockerfile
@@ -126,12 +130,14 @@ services:
 
   gist:
     restart: unless-stopped
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v3/gist/.docker/Dockerfile
 
   v3-api:
     <<: *api
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v3/api/.docker/Dockerfile
@@ -155,6 +161,7 @@ services:
 
   v3-web:
     <<: *web
+    profiles: [legacy]
     build:
       context: ..
       dockerfile: apps/v3/web/.docker/Dockerfile
@@ -169,6 +176,62 @@ services:
       - traefik.http.routers.v3-web.middlewares=v3-web-strip
       - traefik.http.middlewares.v3-web-strip.stripprefix.prefixes=/v3
       - traefik.http.services.v3-web.loadbalancer.server.port=80
+
+  v4:
+    <<: *api
+    build:
+      context: ../apps/v4
+      dockerfile: .docker/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.v4.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v4`)
+      - traefik.http.routers.v4.priority=10
+      - traefik.http.routers.v4.entrypoints=websecure
+      - traefik.http.routers.v4.tls.certresolver=letsencrypt
+      - traefik.http.routers.v4.middlewares=v4-noindex
+      - traefik.http.middlewares.v4-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+      - traefik.http.services.v4.loadbalancer.server.port=3000
+
+  v5-api:
+    <<: *api
+    build:
+      context: ..
+      dockerfile: apps/v5/api/.docker/Dockerfile
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3005
+      WEB_ORIGIN: https://${APP_DOMAIN}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.v5-api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v5/api`)
+      - traefik.http.routers.v5-api.priority=20
+      - traefik.http.routers.v5-api.entrypoints=websecure
+      - traefik.http.routers.v5-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.v5-api.middlewares=v5-api-strip,v5-noindex
+      - traefik.http.middlewares.v5-api-strip.stripprefix.prefixes=/v5
+      - traefik.http.middlewares.v5-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+      - traefik.http.services.v5-api.loadbalancer.server.port=3005
+
+  v5-web:
+    <<: *web
+    build:
+      context: ..
+      dockerfile: apps/v5/web/.docker/Dockerfile
+      args:
+        APP_BASE_PATH: /v5/
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.v5-web.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/v5`)
+      - traefik.http.routers.v5-web.priority=10
+      - traefik.http.routers.v5-web.entrypoints=websecure
+      - traefik.http.routers.v5-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.v5-web.middlewares=v5-web-strip
+      - traefik.http.middlewares.v5-web-strip.stripprefix.prefixes=/v5
+      - traefik.http.services.v5-web.loadbalancer.server.port=80
 
 volumes:
   traefik_acme:
